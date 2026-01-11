@@ -34,4 +34,8 @@ RUN install-php-extensions \
     pdo_pgsql \
     pdo_sqlite
 
+# Create php user and group
+RUN addgroup -g 1000 php && \
+    adduser -u 1000 -G php -s /bin/sh -D php
+
 USER php
