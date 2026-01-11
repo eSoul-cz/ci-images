@@ -34,8 +34,8 @@ RUN install-php-extensions \
     pdo_pgsql \
     pdo_sqlite
 
-# Create php user and group
+# Create php user and group (available if needed, but don't switch to it by default)
+# This allows the container to run as any user, which is important for CI/CD
+# where mounted volumes may have different ownership
 RUN addgroup -g 1000 php && \
     adduser -u 1000 -G php -s /bin/sh -D php
-
-USER php
