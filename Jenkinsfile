@@ -3,6 +3,23 @@ pipeline {
 
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
+		// Define image configurations grouped by name
+		// Each version: dir (required), tag (optional), tags (array of additional tags)
+		IMAGES = [
+			[
+				name: 'node',
+				versions: [
+					[dir: 'node/25', tags: ['25', 'latest']]
+				]
+			],
+			[
+				name: 'php',
+				versions: [
+					[dir: 'php/8_4', tag: '8.4'],
+					[dir: 'php/8_5', tags: ['8.5', '8', 'latest']]
+				]
+			]
+		]
 	}
 
 	stages {
@@ -18,51 +35,60 @@ pipeline {
 			}
 		}
 
-		stage('Build and Push Images') {
+		stage('Build Images') {
 			steps {
 				script {
-					// Define image configurations
-					def images = [
-						[dir: 'node/25', name: 'node', tag: '25'],
-						[dir: 'php/8_4', name: 'php', tag: '8.4'],
-						[dir: 'php/8_5', name: 'php', tag: '8.5']
-					]
+					// Build each image
+					IMAGES.each { imageConfig ->
+						imageConfig.versions.each { version ->
+							def displayName = version.tag ? "${imageConfig.name}:${version.tag}" : "${imageConfig.name} (tags only)"
+							stage("Build ${displayName}") {
+								echo "Building ${displayName} from ${version.dir}"
 
-					// Build and push each image
-					images.each { image ->
-						stage("Build ${image.name}:${image.tag}") {
-							echo "Building ${image.name}:${image.tag} from ${image.dir}"
+								// Determine the primary build tag
+								def buildTag = version.tag ?: (version.tags?.size() > 0 ? version.tags[0] : 'temp')
+								def primaryImage = "${env.REGISTRY}/${imageConfig.name}:${buildTag}"
 
-							def imageName = "${env.REGISTRY}/${image.name}:${image.tag}"
-							def latestTag = "${env.REGISTRY}/${image.name}:latest"
+								// Build the Docker image
+								sh "docker build -t ${primaryImage} ${version.dir}"
 
-							// Build the Docker image
-							sh """
-								docker build -t ${imageName} ${image.dir}
-							"""
+								// If tag exists and is different from build tag, tag it
+								if (version.tag && buildTag != version.tag) {
+									def taggedImage = "${env.REGISTRY}/${imageConfig.name}:${version.tag}"
+									sh "docker tag ${primaryImage} ${taggedImage}"
+								}
 
-							// Tag as latest if it's the highest version
-							if ((image.name == 'node' && image.tag == '25') ||
-							    (image.name == 'php' && image.tag == '8.5')) {
-								sh """
-									docker tag ${imageName} ${latestTag}
-								"""
+								// Tag with additional tags
+								if (version.tags && version.tags.size() > 0) {
+									version.tags.each { tag ->
+										// Skip if this was already the build tag
+										if (tag != buildTag) {
+											def additionalTag = "${env.REGISTRY}/${imageConfig.name}:${tag}"
+											sh "docker tag ${primaryImage} ${additionalTag}"
+										}
+									}
+								}
+
+								echo "Successfully built ${displayName}"
 							}
+						}
+					}
+				}
+			}
+		}
 
-							// Push the image
-							sh """
-								docker push ${imageName}
-							"""
+		stage('Push Images') {
+			steps {
+				script {
+					// Push each image (all versions/tags together)
+					IMAGES.each { imageConfig ->
+						stage("Push ${imageConfig.name}") {
+							echo "Pushing all tags for ${imageConfig.name}"
 
-							// Push latest tag if applicable
-							if ((image.name == 'node' && image.tag == '25') ||
-							    (image.name == 'php' && image.tag == '8.5')) {
-								sh """
-									docker push ${latestTag}
-								"""
-							}
+							// Push all tags for this image in a single command
+							sh "docker push --all-tags ${env.REGISTRY}/${imageConfig.name}"
 
-							echo "Successfully built and pushed ${imageName}"
+							echo "Successfully pushed all tags for ${imageConfig.name}"
 						}
 					}
 				}
