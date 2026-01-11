@@ -11,6 +11,7 @@ RUN install-php-extensions @composer
 
 # Install some base extensions
 RUN install-php-extensions \
+    mbstring \
     bcmath \
     bz2 \
     calendar \
@@ -27,6 +28,10 @@ RUN install-php-extensions \
     redis \
     sockets \
     zip \
-    zlib
+    zlib \
+    sqlite3 \
+    pdo_mysql \
+    pdo_pgsql \
+    pdo_sqlite
 
 USER php
