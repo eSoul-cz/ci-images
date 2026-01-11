@@ -3,23 +3,6 @@ pipeline {
 
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
-		// Define image configurations grouped by name
-		// Each version: dir (required), tag (optional), tags (array of additional tags)
-		IMAGES = [
-			[
-				name: 'node',
-				versions: [
-					[dir: 'node/25', tags: ['25', 'latest']]
-				]
-			],
-			[
-				name: 'php',
-				versions: [
-					[dir: 'php/8_4', tag: '8.4'],
-					[dir: 'php/8_5', tags: ['8.5', '8', 'latest']]
-				]
-			]
-		]
 	}
 
 	stages {
@@ -38,8 +21,30 @@ pipeline {
 		stage('Build Images') {
 			steps {
 				script {
+					// Define image configurations grouped by name
+					// Each version: dir (required), tag (optional), tags (array of additional tags)
+					env.BUILD_IMAGES = true
+					def images = [
+						[
+							name: 'node',
+							versions: [
+								[dir: 'node/25', tags: ['25', 'latest']]
+							]
+						],
+						[
+							name: 'php',
+							versions: [
+								[dir: 'php/8_4', tag: '8.4'],
+								[dir: 'php/8_5', tags: ['8.5', '8', 'latest']]
+							]
+						]
+					]
+
+					// Store image names for push stage
+					env.IMAGE_NAMES = images.collect { it.name }.join(',')
+
 					// Build each image
-					IMAGES.each { imageConfig ->
+					images.each { imageConfig ->
 						imageConfig.versions.each { version ->
 							def displayName = version.tag ? "${imageConfig.name}:${version.tag}" : "${imageConfig.name} (tags only)"
 							stage("Build ${displayName}") {
@@ -80,15 +85,18 @@ pipeline {
 		stage('Push Images') {
 			steps {
 				script {
+					// Get image names from build stage
+					def imageNames = env.IMAGE_NAMES.split(',')
+
 					// Push each image (all versions/tags together)
-					IMAGES.each { imageConfig ->
-						stage("Push ${imageConfig.name}") {
-							echo "Pushing all tags for ${imageConfig.name}"
+					imageNames.each { imageName ->
+						stage("Push ${imageName}") {
+							echo "Pushing all tags for ${imageName}"
 
 							// Push all tags for this image in a single command
-							sh "docker push --all-tags ${env.REGISTRY}/${imageConfig.name}"
+							sh "docker push --all-tags ${env.REGISTRY}/${imageName}"
 
-							echo "Successfully pushed all tags for ${imageConfig.name}"
+							echo "Successfully pushed all tags for ${imageName}"
 						}
 					}
 				}
