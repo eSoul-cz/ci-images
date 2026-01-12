@@ -3,9 +3,27 @@ pipeline {
 
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
+
+		// Build architectures
+		BUILD_ARCHS = 'linux/amd64,linux/arm64'
 	}
 
 	stages {
+		stage('Setup Buildx') {
+			steps {
+				script {
+					// Create and use buildx builder for multi-platform builds
+					sh '''
+						# Create buildx builder if it doesn't exist
+						docker buildx create --name multiarch --driver docker-container --use || docker buildx use multiarch
+
+						# Bootstrap the builder (pulls required images)
+						docker buildx inspect --bootstrap
+					'''
+				}
+			}
+		}
+
 		stage('Docker Login') {
 			steps {
 				script {
@@ -57,7 +75,7 @@ pipeline {
 								def primaryImage = "${env.REGISTRY}/${imageConfig.name}:${buildTag}"
 
 								// Build the Docker image
-								sh "docker build -t ${primaryImage} ${version.dir}"
+								sh "docker buildx build --platform ${env.BUILD_ARCHS} -t ${primaryImage} ${version.dir}"
 
 								// If tag exists and is different from build tag, tag it
 								if (version.tag && buildTag != version.tag) {
