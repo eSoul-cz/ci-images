@@ -66,49 +66,38 @@ pipeline {
 						it.name
 					}.join(',')
 
-					// Build each image
+					// Build each image's versions in parallel
 					images.each { imageConfig ->
 						def imageName = imageConfig.name
 						def versions = imageConfig.versions
 
-						buildStages["Build ${imageName}"] = {
-							def versionStages = [:]
+						versions.each { version ->
+							def displayName = version.tag ? "${imageName}:${version.tag}" : "${imageName} (tags only)"
 
-							imageConfig.versions.each { version ->
-								def displayName = version.tag ? "${imageConfig.name}:${version.tag}" : "${imageConfig.name} (tags only)"
-								versionStages["Build ${displayName}"] = {
-									stage("Build ${displayName}") {
-										echo "Building ${displayName} from ${version.dir}"
+							// Create unique key for parallel map
+							buildStages[displayName] = {
+								echo "Building ${displayName} from ${version.dir}"
 
-										// Determine the primary build tag
-										def buildTag = version.tag ?: (version.tags?.size() > 0 ? version.tags[0] : 'temp')
-										def primaryImage = "${env.REGISTRY}/${imageConfig.name}:${buildTag}"
+								def buildTag = version.tag ?: (version.tags?.size() > 0 ? version.tags[0] : 'temp')
+								def primaryImage = "${env.REGISTRY}/${imageName}:${buildTag}"
 
-										// Build the Docker image
-										sh "docker buildx build --platform ${env.BUILD_ARCHS} --load -t ${primaryImage} ${version.dir}"
+								sh "docker buildx build --platform ${env.BUILD_ARCHS} --load -t ${primaryImage} ${version.dir}"
 
-										// If tag exists and is different from build tag, tag it
-										if (version.tag && buildTag != version.tag) {
-											def taggedImage = "${env.REGISTRY}/${imageConfig.name}:${version.tag}"
-											sh "docker tag ${primaryImage} ${taggedImage}"
+								if (version.tag && buildTag != version.tag) {
+									def taggedImage = "${env.REGISTRY}/${imageName}:${version.tag}"
+									sh "docker tag ${primaryImage} ${taggedImage}"
+								}
+
+								if (version.tags && version.tags.size() > 0) {
+									version.tags.each { tag ->
+										if (tag != buildTag) {
+											def additionalTag = "${env.REGISTRY}/${imageName}:${tag}"
+											sh "docker tag ${primaryImage} ${additionalTag}"
 										}
-
-										// Tag with additional tags
-										if (version.tags && version.tags.size() > 0) {
-											version.tags.each { tag ->
-												// Skip if this was already the build tag
-												if (tag != buildTag) {
-													def additionalTag = "${env.REGISTRY}/${imageConfig.name}:${tag}"
-													sh "docker tag ${primaryImage} ${additionalTag}"
-												}
-											}
-										}
-
-										echo "Successfully built ${displayName}"
 									}
 								}
 
-								parallel versionStages
+								echo "Successfully built ${displayName}"
 							}
 						}
 					}
