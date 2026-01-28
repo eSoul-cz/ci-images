@@ -72,7 +72,7 @@ pipeline {
 						def versions = imageConfig.versions
 
 						versions.each { version ->
-							def displayName = version.tag ? "${imageName}:${version.tag}" : "${imageName} (tags only)"
+							def displayName = version.tag ?: (version.tags?.size() > 0 ? "${imageName}:${version.tags[0]}" : "${imageName} (no tags)")
 
 							// Create unique key for parallel map
 							buildStages[displayName] = {
