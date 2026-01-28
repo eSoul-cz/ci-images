@@ -75,7 +75,7 @@ pipeline {
 								def primaryImage = "${env.REGISTRY}/${imageConfig.name}:${buildTag}"
 
 								// Build the Docker image
-								sh "docker buildx build --platform ${env.BUILD_ARCHS} -t ${primaryImage} ${version.dir}"
+								sh "docker buildx build --platform ${env.BUILD_ARCHS} --load -t ${primaryImage} ${version.dir}"
 
 								// If tag exists and is different from build tag, tag it
 								if (version.tag && buildTag != version.tag) {
