@@ -24,18 +24,6 @@ pipeline {
 			}
 		}
 
-		stage('Docker Login') {
-			steps {
-				script {
-					withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
-						sh '''
-							echo "$SECRET" | docker login rg.fr-par.scw.cloud/testing-images -u nologin --password-stdin
-						'''
-					}
-				}
-			}
-		}
-
 		stage('Build Images') {
 			steps {
 				script {
@@ -108,20 +96,35 @@ pipeline {
 		}
 
 		stage('Push Images') {
-			steps {
-				script {
-					// Get image names from build stage
-					def imageNames = env.IMAGE_NAMES.split(',')
+			stages {
+				stage('Docker Login') {
+					steps {
+						script {
+							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
+								sh '''
+							echo "$SECRET" | docker login rg.fr-par.scw.cloud/testing-images -u nologin --password-stdin
+						'''
+							}
+						}
+					}
+				}
+				stage('Push'){
+					steps {
+						script {
+							// Get image names from build stage
+							def imageNames = env.IMAGE_NAMES.split(',')
 
-					// Push each image (all versions/tags together)
-					imageNames.each { imageName ->
-						stage("Push ${imageName}") {
-							echo "Pushing all tags for ${imageName}"
+							// Push each image (all versions/tags together)
+							imageNames.each { imageName ->
+								stage("Push ${imageName}") {
+									echo "Pushing all tags for ${imageName}"
 
-							// Push all tags for this image in a single command
-							sh "docker push --all-tags ${env.REGISTRY}/${imageName}"
+									// Push all tags for this image in a single command
+									sh "docker push --all-tags ${env.REGISTRY}/${imageName}"
 
-							echo "Successfully pushed all tags for ${imageName}"
+									echo "Successfully pushed all tags for ${imageName}"
+								}
+							}
 						}
 					}
 				}
