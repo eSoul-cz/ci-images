@@ -32,7 +32,8 @@ RUN install-php-extensions \
     sqlite3 \
     pdo_mysql \
     pdo_pgsql \
-    pdo_sqlite
+    pdo_sqlite \
+    imagick
 
 # Create php user and group (available if needed, but don't switch to it by default)
 # This allows the container to run as any user, which is important for CI/CD
