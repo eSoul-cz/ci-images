@@ -1,35 +1,23 @@
+@Library(['dockerHelpers']) _
+
 pipeline {
-	agent any
+	agent none
 
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
 
-		// Build architectures
-		BUILD_ARCHS = 'linux/amd64,linux/arm64'
+		// Jenkins node labels
+		AMD64_LABEL = "amd64 && docker"     // your Scaleway builder/agent
+		ARM64_LABEL = "arm64 && docker"     // your Raspberry Pi agent
+
+		// Scaleway registry hostname for login
+		REGISTRY_HOST = "rg.fr-par.scw.cloud"
 	}
 
 	stages {
-		stage('Setup Buildx') {
+		stage('Build + Push per-arch (parallel)') {
 			steps {
 				script {
-					// Create and use buildx builder for multi-platform builds
-					sh '''
-						# Create buildx builder if it doesn't exist
-						docker buildx create --name multiarch --driver docker-container --use || docker buildx use multiarch
-
-						# Bootstrap the builder (pulls required images)
-						docker buildx inspect --bootstrap
-					'''
-				}
-			}
-		}
-
-		stage('Build Images') {
-			steps {
-				script {
-					// Define image configurations grouped by name
-					// Each version: dir (required), tag (optional), tags (array of additional tags)
-					env.BUILD_IMAGES = true
 					def images = [
 						[
 							name: 'node',
@@ -47,85 +35,107 @@ pipeline {
 							]
 						]
 					]
-					def buildStages = [:]
 
-					// Store image names for push stage
-					env.IMAGE_NAMES = images.collect {
-						it.name
-					}.join(',')
+					// We'll reuse this list later to create multi-arch manifests
+					env.IMAGE_MATRIX = groovy.json.JsonOutput.toJson(images)
 
-					// Build each image's versions in parallel
-					images.each { imageConfig ->
-						def imageName = imageConfig.name
-						def versions = imageConfig.versions
+					def parallelBuilds = [:]
 
-						versions.each { version ->
-							def displayName = version.tag ?: (version.tags?.size() > 0 ? "${imageName}:${version.tags[0]}" : "${imageName} (no tags)")
+					parallelBuilds["amd64"] = {
+						node(env.AMD64_LABEL) {
+							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
+								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-							// Create unique key for parallel map
-							buildStages[displayName] = {
-								echo "Building ${displayName} from ${version.dir}"
+								def cfg = new groovy.json.JsonSlurperClassic().parseText(env.IMAGE_MATRIX)
 
-								def buildTag = version.tag ?: (version.tags?.size() > 0 ? version.tags[0] : 'temp')
-								def primaryImage = "${env.REGISTRY}/${imageName}:${buildTag}"
+								cfg.each { imageConfig ->
+									def imageName = imageConfig.name
+									imageConfig.versions.each { v ->
+										def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+										def archTag = "${baseTag}-amd64"
 
-								sh "docker buildx build --platform ${env.BUILD_ARCHS} --load -t ${primaryImage} ${version.dir}"
-
-								if (version.tag && buildTag != version.tag) {
-									def taggedImage = "${env.REGISTRY}/${imageName}:${version.tag}"
-									sh "docker tag ${primaryImage} ${taggedImage}"
-								}
-
-								if (version.tags && version.tags.size() > 0) {
-									version.tags.each { tag ->
-										if (tag != buildTag) {
-											def additionalTag = "${env.REGISTRY}/${imageName}:${tag}"
-											sh "docker tag ${primaryImage} ${additionalTag}"
-										}
+										dockerBuildImage(
+											registry: env.REGISTRY,
+											image: imageName,
+											contextDir: v.dir,
+											tag: archTag,
+											platform: "linux/amd64",
+											push: true
+										)
 									}
 								}
 
-								echo "Successfully built ${displayName}"
+								dockerRegistryLogout(env.REGISTRY_HOST)
 							}
 						}
 					}
 
-					parallel buildStages
+					parallelBuilds["arm64"] = {
+						node(env.ARM64_LABEL) {
+							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
+								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
+
+								def cfg = new groovy.json.JsonSlurperClassic().parseText(env.IMAGE_MATRIX)
+
+								cfg.each { imageConfig ->
+									def imageName = imageConfig.name
+									imageConfig.versions.each { v ->
+										def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+										def archTag = "${baseTag}-arm64"
+
+										dockerBuildImage(
+											registry: env.REGISTRY,
+											image: imageName,
+											contextDir: v.dir,
+											tag: archTag,
+											platform: "linux/arm64",
+											push: true
+										)
+									}
+								}
+
+								dockerRegistryLogout(env.REGISTRY_HOST)
+							}
+						}
+					}
+
+					parallel parallelBuilds
 				}
 			}
 		}
 
-		stage('Push Images') {
-			stages {
-				stage('Docker Login') {
-					steps {
-						script {
-							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
-								sh '''
-							echo "$SECRET" | docker login rg.fr-par.scw.cloud/testing-images -u nologin --password-stdin
-						'''
+		stage('Create multi-arch manifests') {
+			// run this on the amd64 builder (or any node with buildx + registry access)
+			agent { label "${AMD64_LABEL}" }
+			steps {
+				script {
+					withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
+						dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
+
+						def cfg = new groovy.json.JsonSlurperClassic().parseText(env.IMAGE_MATRIX)
+
+						def mergeList = []
+
+						cfg.each { imageConfig ->
+							def imageName = imageConfig.name
+							imageConfig.versions.each { v ->
+								def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+
+								mergeList << [
+									name: imageName,
+									baseTag: baseTag,
+									archTags: [
+										amd64: "${baseTag}-amd64",
+										arm64: "${baseTag}-arm64"
+									],
+									extraTags: v.tags ?: []
+								]
 							}
 						}
-					}
-				}
-				stage('Push'){
-					steps {
-						script {
-							// Get image names from build stage
-							def imageNames = env.IMAGE_NAMES.split(',')
 
-							// Push each image (all versions/tags together)
-							imageNames.each { imageName ->
-								stage("Push ${imageName}") {
-									echo "Pushing all tags for ${imageName}"
+						dockerMergeManifests(registry: env.REGISTRY, images: mergeList)
 
-									// Push all tags for this image in a single command
-									sh "docker push --all-tags ${env.REGISTRY}/${imageName}"
-
-									echo "Successfully pushed all tags for ${imageName}"
-								}
-							}
-						}
+						dockerRegistryLogout(env.REGISTRY_HOST)
 					}
 				}
 			}
@@ -133,14 +143,8 @@ pipeline {
 	}
 
 	post {
-		always {
-			echo 'Pipeline completed'
-		}
-		success {
-			echo 'All images built and pushed successfully!'
-		}
-		failure {
-			echo 'Pipeline failed. Check the logs for details.'
-		}
+		always { echo 'Pipeline completed' }
+		success { echo 'All images built + pushed + multi-arch manifests created!' }
+		failure { echo 'Pipeline failed. Check the logs for details.' }
 	}
 }
