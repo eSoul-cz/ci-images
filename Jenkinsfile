@@ -3,6 +3,8 @@
 // Script-level variable to store image matrix
 def imageMatrix = null
 
+def archs = null
+
 pipeline {
 	agent none
 
@@ -39,62 +41,56 @@ pipeline {
 						]
 					]
 
+					archs = [
+						amd64: [
+							label: env.AMD64_LABEL,
+							platform: "linux/amd64"
+						],
+						arm64: [
+							label: env.ARM64_LABEL,
+							platform: "linux/arm64"
+						]
+					]
+
 					def parallelBuilds = [:]
 
-					parallelBuilds["amd64"] = {
-						node(env.AMD64_LABEL) {
-							checkout scm
+					archs.each { arch, config ->
+						parallelBuilds[arch] = {
+							node(config.label) {
+								checkout scm
 
-							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
-								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
+								withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
+									dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-								imageMatrix.each { imageConfig ->
-									def imageName = imageConfig.name
-									imageConfig.versions.each { v ->
-										def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
-										def archTag = "${baseTag}-amd64"
+									def buildStages = [:]
 
-										dockerBuildImage(
-											registry: env.REGISTRY,
-											image: imageName,
-											contextDir: v.dir,
-											tag: archTag,
-											platform: "linux/amd64",
-											push: true
-										)
+									imageMatrix.each { imageConfig ->
+										buildStages["Building ${imageConfig.name} for ${arch}"] = {
+											steps {
+												script {
+													def imageName = imageConfig.name
+													imageConfig.versions.each { v ->
+														def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+														def archTag = "${baseTag}-${arch}"
+
+														dockerBuildImage(
+															registry: env.REGISTRY,
+															image: imageName,
+															contextDir: v.dir,
+															tag: archTag,
+															platform: config.platform,
+															push: true
+														)
+													}
+												}
+											}
+										}
 									}
+
+									parallel buildStages
+
+									dockerRegistryLogout(env.REGISTRY_HOST)
 								}
-
-								dockerRegistryLogout(env.REGISTRY_HOST)
-							}
-						}
-					}
-
-					parallelBuilds["arm64"] = {
-						node(env.ARM64_LABEL) {
-							checkout scm
-
-							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
-								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
-
-								imageMatrix.each { imageConfig ->
-									def imageName = imageConfig.name
-									imageConfig.versions.each { v ->
-										def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
-										def archTag = "${baseTag}-arm64"
-
-										dockerBuildImage(
-											registry: env.REGISTRY,
-											image: imageName,
-											contextDir: v.dir,
-											tag: archTag,
-											platform: "linux/arm64",
-											push: true
-										)
-									}
-								}
-
-								dockerRegistryLogout(env.REGISTRY_HOST)
 							}
 						}
 					}
@@ -105,7 +101,7 @@ pipeline {
 		}
 
 		stage('Create multi-arch manifests') {
-			agent { label "${AMD64_LABEL}" }
+			agent any
 			steps {
 				script {
 					withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
@@ -140,8 +136,14 @@ pipeline {
 	}
 
 	post {
-		always { echo 'Pipeline completed' }
-		success { echo 'All images built + pushed + multi-arch manifests created!' }
-		failure { echo 'Pipeline failed. Check the logs for details.' }
+		always {
+			echo 'Pipeline completed'
+		}
+		success {
+			echo 'All images built + pushed + multi-arch manifests created!'
+		}
+		failure {
+			echo 'Pipeline failed. Check the logs for details.'
+		}
 	}
 }
