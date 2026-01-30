@@ -1,5 +1,8 @@
 @Library(['dockerHelpers']) _
 
+// Script-level variable to store image matrix
+def imageMatrix = null
+
 pipeline {
 	agent none
 
@@ -18,7 +21,7 @@ pipeline {
 		stage('Build + Push per-arch (parallel)') {
 			steps {
 				script {
-					def images = [
+					imageMatrix = [
 						[
 							name: 'node',
 							versions: [
@@ -36,9 +39,6 @@ pipeline {
 						]
 					]
 
-					// We'll reuse this list later to create multi-arch manifests
-					env.IMAGE_MATRIX = groovy.json.JsonOutput.toJson(images)
-
 					def parallelBuilds = [:]
 
 					parallelBuilds["amd64"] = {
@@ -46,9 +46,7 @@ pipeline {
 							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-								def cfg = new groovy.json.JsonSlurperClassic().parseText(env.IMAGE_MATRIX)
-
-								cfg.each { imageConfig ->
+								imageMatrix.each { imageConfig ->
 									def imageName = imageConfig.name
 									imageConfig.versions.each { v ->
 										def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
@@ -75,9 +73,7 @@ pipeline {
 							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-								def cfg = new groovy.json.JsonSlurperClassic().parseText(env.IMAGE_MATRIX)
-
-								cfg.each { imageConfig ->
+								imageMatrix.each { imageConfig ->
 									def imageName = imageConfig.name
 									imageConfig.versions.each { v ->
 										def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
@@ -105,18 +101,15 @@ pipeline {
 		}
 
 		stage('Create multi-arch manifests') {
-			// run this on the amd64 builder (or any node with buildx + registry access)
 			agent { label "${AMD64_LABEL}" }
 			steps {
 				script {
 					withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 						dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-						def cfg = new groovy.json.JsonSlurperClassic().parseText(env.IMAGE_MATRIX)
-
 						def mergeList = []
 
-						cfg.each { imageConfig ->
+						imageMatrix.each { imageConfig ->
 							def imageName = imageConfig.name
 							imageConfig.versions.each { v ->
 								def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
