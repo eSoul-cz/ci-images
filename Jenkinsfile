@@ -43,6 +43,8 @@ pipeline {
 
 					parallelBuilds["amd64"] = {
 						node(env.AMD64_LABEL) {
+							checkout scm
+
 							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
@@ -70,6 +72,8 @@ pipeline {
 
 					parallelBuilds["arm64"] = {
 						node(env.ARM64_LABEL) {
+							checkout scm
+
 							withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 								dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
