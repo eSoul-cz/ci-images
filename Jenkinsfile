@@ -66,23 +66,19 @@ pipeline {
 
 									imageMatrix.each { imageConfig ->
 										buildStages["Building ${imageConfig.name} for ${arch}"] = {
-											steps {
-												script {
-													def imageName = imageConfig.name
-													imageConfig.versions.each { v ->
-														def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
-														def archTag = "${baseTag}-${arch}"
+											def imageName = imageConfig.name
+											imageConfig.versions.each { v ->
+												def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+												def archTag = "${baseTag}-${arch}"
 
-														dockerBuildImage(
-															registry: env.REGISTRY,
-															image: imageName,
-															contextDir: v.dir,
-															tag: archTag,
-															platform: config.platform,
-															push: true
-														)
-													}
-												}
+												dockerBuildImage(
+													registry: env.REGISTRY,
+													image: imageName,
+													contextDir: v.dir,
+													tag: archTag,
+													platform: config.platform,
+													push: true
+												)
 											}
 										}
 									}
