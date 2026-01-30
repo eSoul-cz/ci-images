@@ -10,8 +10,8 @@ pipeline {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
 
 		// Jenkins node labels
-		AMD64_LABEL = "amd64 docker"     // your Scaleway builder/agent
-		ARM64_LABEL = "arm64 docker"     // your Raspberry Pi agent
+		AMD64_LABEL = "amd64"     // your Scaleway builder/agent
+		ARM64_LABEL = "arm64"     // your Raspberry Pi agent
 
 		// Scaleway registry hostname for login
 		REGISTRY_HOST = "rg.fr-par.scw.cloud"
