@@ -72,12 +72,13 @@ pipeline {
 								withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 									dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-									def buildStages = [:]
+								def buildStages = [:]
 
-									imageMatrix.each { imageConfig ->
-										def imageRegistry = imageConfig.registry ?: env.REGISTRY
-										buildStages["Building ${imageRegistry}/${imageConfig.name} for ${arch}"] = {
-											def imageName = imageConfig.name
+								imageMatrix.each { imageConfig ->
+									def imageRegistry = imageConfig.registry ?: env.REGISTRY
+									buildStages["Building ${imageRegistry}/${imageConfig.name} for ${arch}"] = {
+										def imageName = imageConfig.name
+										imageConfig.versions.each { v ->
 											def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
 											def archTag = "${baseTag}-${arch}"
 
@@ -103,6 +104,7 @@ pipeline {
 											}
 										}
 									}
+								}
 
 									parallel buildStages
 
