@@ -10,6 +10,7 @@ pipeline {
 
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
+		STARTERS_REGISTRY = "rg.fr-par.scw.cloud/esoul-starters"
 
 		// Jenkins node labels
 		AMD64_LABEL = "amd64"     // your Scaleway builder/agent
@@ -38,6 +39,15 @@ pipeline {
 								[dir: 'php/8_4', tag: '8.4'],
 								[dir: 'php/8_5', tags: ['8.5', '8', 'latest']]
 							]
+						],
+						[
+							name: 'php-fpm',
+							registry: env.STARTERS_REGISTRY,
+							registryHost: env.REGISTRY_HOST,
+							versions: [
+								[dir: 'php/base', tags: ['8.5.3', '8.5', '8', 'latest']],
+								[dir: 'php/base', tag: '8.4', buildArgs: [VERSION: '8.4']]
+							]
 						]
 					]
 
@@ -65,14 +75,25 @@ pipeline {
 									def buildStages = [:]
 
 									imageMatrix.each { imageConfig ->
-										buildStages["Building ${imageConfig.name} for ${arch}"] = {
+										def imageRegistry = imageConfig.registry ?: env.REGISTRY
+										buildStages["Building ${imageRegistry}/${imageConfig.name} for ${arch}"] = {
 											def imageName = imageConfig.name
-											imageConfig.versions.each { v ->
-												def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
-												def archTag = "${baseTag}-${arch}"
+											def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+											def archTag = "${baseTag}-${arch}"
 
+											if (v.buildArgs) {
 												dockerBuildImage(
-													registry: env.REGISTRY,
+													registry: imageRegistry,
+													image: imageName,
+													contextDir: v.dir,
+													tag: archTag,
+													platform: config.platform,
+													push: true,
+													buildArgs: v.buildArgs
+												)
+											} else {
+												dockerBuildImage(
+													registry: imageRegistry,
 													image: imageName,
 													contextDir: v.dir,
 													tag: archTag,
@@ -103,14 +124,16 @@ pipeline {
 					withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 						dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-						def mergeList = []
+						def mergeListByRegistry = [:]
 
 						imageMatrix.each { imageConfig ->
 							def imageName = imageConfig.name
+							def imageRegistry = imageConfig.registry ?: env.REGISTRY
+							mergeListByRegistry[imageRegistry] = mergeListByRegistry[imageRegistry] ?: []
 							imageConfig.versions.each { v ->
 								def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
 
-								mergeList << [
+								mergeListByRegistry[imageRegistry] << [
 									name: imageName,
 									baseTag: baseTag,
 									archTags: [
@@ -122,7 +145,9 @@ pipeline {
 							}
 						}
 
-						dockerMergeManifests(registry: env.REGISTRY, images: mergeList)
+						mergeListByRegistry.each { registry, mergeList ->
+							dockerMergeManifests(registry: registry, images: mergeList)
+						}
 
 						dockerRegistryLogout(env.REGISTRY_HOST)
 					}
