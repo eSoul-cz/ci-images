@@ -45,8 +45,26 @@ pipeline {
 							registry: env.STARTERS_REGISTRY,
 							registryHost: env.REGISTRY_HOST,
 							versions: [
-								[dir: 'php/base', tags: ['8.5.3', '8.5', '8', 'latest']],
-								[dir: 'php/base', tag: '8.4', buildArgs: [VERSION: '8.4']]
+								[
+									dir: 'php/base',
+									tags: ['8.5.3', '8.5', '8', 'latest'],
+									// Built sequentially so each stage reuses the previous layer cache
+									stages: [
+										[target: 'base',            imageSuffix: ''],
+										[target: 'laravel-minimal', imageSuffix: '-laravel-minimal'],
+										[target: 'laravel',         imageSuffix: '-laravel']
+									]
+								],
+								[
+									dir: 'php/base',
+									tag: '8.4',
+									buildArgs: [VERSION: '8.4'],
+									stages: [
+										[target: 'base',            imageSuffix: ''],
+										[target: 'laravel-minimal', imageSuffix: '-laravel-minimal'],
+										[target: 'laravel',         imageSuffix: '-laravel']
+									]
+								]
 							]
 						]
 					]
@@ -80,27 +98,37 @@ pipeline {
 										def imageName = imageConfig.name
 										imageConfig.versions.each { v ->
 											def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
-											def archTag = "${baseTag}-${arch}"
 
-											if (v.buildArgs) {
-												dockerBuildImage(
-													registry: imageRegistry,
-													image: imageName,
-													contextDir: v.dir,
-													tag: archTag,
-													platform: config.platform,
-													push: true,
-													buildArgs: v.buildArgs
-												)
+											if (v.stages) {
+												// Build each Dockerfile stage sequentially so later stages
+												// can reuse the Docker layer cache populated by earlier ones.
+												v.stages.each { s ->
+													def archTag = "${baseTag}-${arch}"
+													def buildParams = [
+														registry: imageRegistry,
+														image: "${imageName}${s.imageSuffix}",
+														contextDir: v.dir,
+														tag: archTag,
+														platform: config.platform,
+														push: true,
+														extraFlags: "--target ${s.target}"
+													]
+													if (v.buildArgs) buildParams.buildArgs = v.buildArgs
+													dockerBuildImage(buildParams)
+												}
 											} else {
-												dockerBuildImage(
+												def archTag = "${baseTag}-${arch}"
+												def buildParams = [
 													registry: imageRegistry,
 													image: imageName,
 													contextDir: v.dir,
 													tag: archTag,
 													platform: config.platform,
 													push: true
-												)
+												]
+												if (v.buildArgs) buildParams.buildArgs = v.buildArgs
+												if (v.target) buildParams.extraFlags = "--target ${v.target}"
+												dockerBuildImage(buildParams)
 											}
 										}
 									}
@@ -135,15 +163,29 @@ pipeline {
 							imageConfig.versions.each { v ->
 								def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
 
-								mergeListByRegistry[imageRegistry] << [
-									name: imageName,
-									baseTag: baseTag,
-									archTags: [
-										amd64: "${baseTag}-amd64",
-										arm64: "${baseTag}-arm64"
-									],
-									extraTags: v.tags ?: []
-								]
+								if (v.stages) {
+									v.stages.each { s ->
+										mergeListByRegistry[imageRegistry] << [
+											name: "${imageName}${s.imageSuffix}",
+											baseTag: baseTag,
+											archTags: [
+												amd64: "${baseTag}-amd64",
+												arm64: "${baseTag}-arm64"
+											],
+											extraTags: v.tags ?: []
+										]
+									}
+								} else {
+									mergeListByRegistry[imageRegistry] << [
+										name: imageName,
+										baseTag: baseTag,
+										archTags: [
+											amd64: "${baseTag}-amd64",
+											arm64: "${baseTag}-arm64"
+										],
+										extraTags: v.tags ?: []
+									]
+								}
 							}
 						}
 
