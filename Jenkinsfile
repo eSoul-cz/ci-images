@@ -90,53 +90,51 @@ pipeline {
 								withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
 									dockerRegistryLogin(registryUrl: env.REGISTRY_HOST, username: 'nologin', password: SECRET)
 
-								def buildStages = [:]
+									def buildStages = [:]
 
-								imageMatrix.each { imageConfig ->
-									def imageRegistry = imageConfig.registry ?: env.REGISTRY
-									buildStages["Building ${imageRegistry}/${imageConfig.name} for ${arch}"] = {
-										def imageName = imageConfig.name
-										imageConfig.versions.each { v ->
-											def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+									imageMatrix.each { imageConfig ->
+										def imageRegistry = imageConfig.registry ?: env.REGISTRY
+										buildStages["Building ${imageRegistry}/${imageConfig.name} for ${arch}"] = {
+											def imageName = imageConfig.name
+											imageConfig.versions.each { v ->
+												def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
 
-											if (v.stages) {
-												// Build each Dockerfile stage sequentially so later stages
-												// can reuse the Docker layer cache populated by earlier ones.
-												v.stages.each { s ->
+												if (v.stages) {
+													// Build each Dockerfile stage sequentially so later stages
+													// can reuse the Docker layer cache populated by earlier ones.
+													v.stages.each { s ->
+														def archTag = "${baseTag}-${arch}"
+														def buildParams = [
+															registry: imageRegistry,
+															image: "${imageName}${s.imageSuffix}",
+															contextDir: v.dir,
+															tag: archTag,
+															platform: config.platform,
+															push: true,
+															extraFlags: "--target ${s.target}"
+														]
+														if (v.buildArgs) buildParams.buildArgs = v.buildArgs
+														dockerBuildImage(buildParams)
+													}
+												} else {
 													def archTag = "${baseTag}-${arch}"
 													def buildParams = [
 														registry: imageRegistry,
-														image: "${imageName}${s.imageSuffix}",
+														image: imageName,
 														contextDir: v.dir,
 														tag: archTag,
 														platform: config.platform,
-														push: true,
-														extraFlags: "--target ${s.target}"
+														push: true
 													]
 													if (v.buildArgs) buildParams.buildArgs = v.buildArgs
+													if (v.target) buildParams.extraFlags = "--target ${v.target}"
 													dockerBuildImage(buildParams)
 												}
-											} else {
-												def archTag = "${baseTag}-${arch}"
-												def buildParams = [
-													registry: imageRegistry,
-													image: imageName,
-													contextDir: v.dir,
-													tag: archTag,
-													platform: config.platform,
-													push: true
-												]
-												if (v.buildArgs) buildParams.buildArgs = v.buildArgs
-												if (v.target) buildParams.extraFlags = "--target ${v.target}"
-												dockerBuildImage(buildParams)
 											}
 										}
 									}
-								}
 
 									parallel buildStages
-
-									dockerRegistryLogout(env.REGISTRY_HOST)
 								}
 							}
 						}
@@ -192,8 +190,6 @@ pipeline {
 						mergeListByRegistry.each { registry, mergeList ->
 							dockerMergeManifests(registry: registry, images: mergeList)
 						}
-
-						dockerRegistryLogout(env.REGISTRY_HOST)
 					}
 				}
 			}
