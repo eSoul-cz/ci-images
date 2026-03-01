@@ -34,6 +34,12 @@ pipeline {
 							]
 						],
 						[
+							name: 'playwright',
+							versions: [
+								[dir: 'playwright', tag: 'latest'],
+							]
+						],
+						[
 							name: 'php',
 							versions: [
 								[dir: 'php/8_4', tag: '8.4'],
