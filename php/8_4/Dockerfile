@@ -1,4 +1,4 @@
-FROM php:8.4-cli-alpine
+FROM php:8.4-cli-alpine AS base
 
 LABEL authors="Tomáš Vojík"
 LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
@@ -43,3 +43,13 @@ RUN install-php-extensions grpc protobuf
 # where mounted volumes may have different ownership
 RUN addgroup -g 1000 php && \
     adduser -u 1000 -G php -s /bin/sh -D php
+
+FROM base AS node
+
+# Install Node.js (LTS) via apk
+RUN apk add --no-cache nodejs npm
+
+# Install pnpm via corepack
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@latest --activate

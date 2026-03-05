@@ -42,8 +42,34 @@ pipeline {
 						[
 							name: 'php',
 							versions: [
-								[dir: 'php/8_4', tag: '8.4'],
-								[dir: 'php/8_5', tags: ['8.5', '8', 'latest']]
+								[
+									dir: 'php/8_4',
+									tag: '8.4',
+									stages: [
+										[
+											target: 'base',
+											imageSuffix: ''
+										],
+										[
+											target: 'node',
+											imageSuffix: '-node'
+										]
+									]
+								],
+								[
+									dir: 'php/8_5',
+									tags: ['8.5', '8', 'latest'],
+									stages: [
+										[
+											target: 'base',
+											imageSuffix: ''
+										],
+										[
+											target: 'node',
+											imageSuffix: '-node'
+										]
+									],
+								]
 							]
 						],
 						[
