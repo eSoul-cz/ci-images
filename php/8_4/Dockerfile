@@ -44,12 +44,19 @@ RUN install-php-extensions grpc protobuf
 RUN addgroup -g 1000 php && \
     adduser -u 1000 -G php -s /bin/sh -D php
 
+FROM node:lts-alpine AS node-source
+
 FROM base AS node
 
 # Install Node.js (LTS) via apk
 RUN apk add --no-cache nodejs npm
 
-# Install pnpm via corepack
+# Copy pnpm from the official node image
+COPY --from=node-source /usr/lib /usr/lib
+COPY --from=node-source /usr/local/lib /usr/local/lib
+COPY --from=node-source /usr/local/include /usr/local/include
+COPY --from=node-source /usr/local/bin /usr/local/bin
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh -
