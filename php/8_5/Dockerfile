@@ -37,6 +37,7 @@ RUN install-php-extensions \
 
 RUN install-php-extensions opentelemetry
 RUN install-php-extensions grpc protobuf
+RUN install-php-extensions pcntl
 
 # Create php user and group (available if needed, but don't switch to it by default)
 # This allows the container to run as any user, which is important for CI/CD
