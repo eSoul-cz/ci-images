@@ -132,8 +132,6 @@ pipeline {
 												def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
 
 												if (v.stages) {
-													// Build each Dockerfile stage sequentially so later stages
-													// can reuse the Docker layer cache populated by earlier ones.
 													v.stages.each { s ->
 														def archTag = "${baseTag}-${arch}"
 														def buildParams = [
@@ -166,7 +164,20 @@ pipeline {
 										}
 									}
 
-									parallel buildStages
+									// Detect if the agent label contains 'lowmem' for sequential build (any arch)
+									def nodeLabels = env.NODE_LABELS ?: ''
+									def isLowmem = nodeLabels.split()*.toLowerCase().contains('lowmem')
+
+									if (isLowmem) {
+										// Run builds sequentially on lowmem agents
+										buildStages.each { name, stageClosure ->
+											echo "[${arch.toUpperCase()}][LOWMEM] Running: ${name} (sequential)"
+											stageClosure()
+										}
+									} else {
+										// Run builds in parallel on non-lowmem agents
+										parallel buildStages
+									}
 								}
 							}
 						}
