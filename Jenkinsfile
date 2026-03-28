@@ -166,7 +166,7 @@ pipeline {
 
 									// Detect if the agent label contains 'lowmem' for sequential build (any arch)
 									def nodeLabels = env.NODE_LABELS ?: ''
-									def isLowmem = nodeLabels.split()*.toLowerCase().contains('lowmem')
+									def isLowmem = nodeLabels.split().collect { it.toLowerCase() }.contains('lowmem')
 
 									if (isLowmem) {
 										// Run builds sequentially on lowmem agents
