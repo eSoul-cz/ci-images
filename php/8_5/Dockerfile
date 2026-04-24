@@ -6,11 +6,9 @@ LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
 # Add PHP extension installer
 COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-# Add composer
-RUN install-php-extensions @composer
-
 # Install some base extensions
 RUN install-php-extensions \
+    @composer \
     mbstring \
     bcmath \
     bz2 \
@@ -33,11 +31,11 @@ RUN install-php-extensions \
     pdo_mysql \
     pdo_pgsql \
     pdo_sqlite \
-    imagick
-
-RUN install-php-extensions opentelemetry
-RUN install-php-extensions grpc protobuf
-RUN install-php-extensions pcntl
+    imagick \
+    opentelemetry \
+    grpc  \
+    protobuf \
+    pcntl
 
 # Create php user and group (available if needed, but don't switch to it by default)
 # This allows the container to run as any user, which is important for CI/CD
@@ -57,7 +55,8 @@ COPY --from=node-source /usr/lib /usr/lib
 COPY --from=node-source /usr/local/lib /usr/local/lib
 COPY --from=node-source /usr/local/include /usr/local/include
 COPY --from=node-source /usr/local/bin /usr/local/bin
+COPY --from=node-source /opt /opt
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh -
+RUN corepack enable && corepack prepare pnpm@latest --activate
