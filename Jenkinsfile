@@ -8,6 +8,16 @@ def archs = null
 pipeline {
 	agent none
 
+	triggers {
+		// Jenkins evaluates this in the controller timezone.
+		cron('H 1 * * *')
+	}
+
+	options {
+		disableConcurrentBuilds()
+		overrideIndexTriggers(false)
+	}
+
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
 		STARTERS_REGISTRY = "rg.fr-par.scw.cloud/esoul-starters"
@@ -22,6 +32,14 @@ pipeline {
 
 	stages {
 		stage('Build + Push per-arch (parallel)') {
+			when {
+				beforeAgent true
+				expression {
+					def timerCauses = currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')
+					def userCauses = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+					return (!timerCauses.isEmpty() && (!env.BRANCH_NAME || env.BRANCH_NAME == 'master')) || !userCauses.isEmpty()
+				}
+			}
 			steps {
 				script {
 					imageMatrix = [
@@ -190,6 +208,14 @@ pipeline {
 
 		stage('Create multi-arch manifests') {
 			agent any
+			when {
+				beforeAgent true
+				expression {
+					def timerCauses = currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')
+					def userCauses = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+					return (!timerCauses.isEmpty() && (!env.BRANCH_NAME || env.BRANCH_NAME == 'master')) || !userCauses.isEmpty()
+				}
+			}
 			steps {
 				script {
 					withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'SECRET')]) {
