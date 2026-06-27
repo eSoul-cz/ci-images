@@ -6,6 +6,9 @@ LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
 # Add PHP extension installer
 COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
+# Allow Composer to fall back to source installs when dist downloads fail.
+RUN apk add --no-cache git
+
 # Install some base extensions
 RUN install-php-extensions \
     @composer \
