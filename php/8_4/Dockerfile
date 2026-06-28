@@ -1,5 +1,7 @@
 FROM php:8.4-cli-alpine AS base
 
+ARG IPE_PROCESSOR_COUNT=2
+
 LABEL authors="Tomáš Vojík"
 LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
 
@@ -8,6 +10,12 @@ COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensi
 
 # Allow Composer to fall back to source installs when dist downloads fail.
 RUN apk add --no-cache git
+
+# Install slow, stable telemetry/RPC extensions in their own cacheable layer.
+RUN install-php-extensions \
+    opentelemetry \
+    grpc \
+    protobuf
 
 # Install some base extensions
 RUN install-php-extensions \
@@ -35,9 +43,6 @@ RUN install-php-extensions \
     pdo_pgsql \
     pdo_sqlite \
     imagick \
-    opentelemetry \
-    grpc  \
-    protobuf \
     pcntl
 
 # Create php user and group (available if needed, but don't switch to it by default)

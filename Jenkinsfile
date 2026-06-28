@@ -28,6 +28,10 @@ pipeline {
 
 		// Scaleway registry hostname for login
 		REGISTRY_HOST = "rg.fr-par.scw.cloud"
+
+		// Keep native Docker/PHP image builds from saturating shared Jenkins hosts.
+		CI_IMAGES_PARALLEL_BUILDS = "false"
+		PHP_BUILD_PROCESSOR_COUNT = "2"
 	}
 
 	stages {
@@ -97,7 +101,7 @@ pipeline {
 							versions: [
 								[
 									dir: 'php/base',
-									tags: ['8.5.3', '8.5', '8', 'latest'],
+									tags: ['8.5.7', '8.5', '8', 'latest'],
 									// Built sequentially so each stage reuses the previous layer cache
 									stages: [
 										[target: 'base',            imageSuffix: ''],
@@ -163,7 +167,8 @@ pipeline {
 															cacheRef: "${imageRegistry}/${imageName}${s.imageSuffix}:${cacheTag}",
 															extraFlags: "--target ${s.target}"
 														]
-														if (v.buildArgs) buildParams.buildArgs = v.buildArgs
+														if (imageName == 'php' || imageName == 'php-fpm') buildParams.buildArgs = [IPE_PROCESSOR_COUNT: env.PHP_BUILD_PROCESSOR_COUNT]
+														if (v.buildArgs) buildParams.buildArgs = (buildParams.buildArgs ?: [:]) + v.buildArgs
 														dockerBuildImage(buildParams)
 													}
 												} else {
@@ -189,11 +194,12 @@ pipeline {
 									// Detect if the agent label contains 'lowmem' for sequential build (any arch)
 									def nodeLabels = env.NODE_LABELS ?: ''
 									def isLowmem = nodeLabels.split().collect { it.toLowerCase() }.contains('lowmem')
+									def runParallelBuilds = env.CI_IMAGES_PARALLEL_BUILDS?.toBoolean()
 
-									if (isLowmem) {
-										// Run builds sequentially on lowmem agents
+									if (isLowmem || !runParallelBuilds) {
+										// Run builds sequentially on lowmem agents or when global image-build throttling is enabled.
 										buildStages.each { name, stageClosure ->
-											echo "[${arch.toUpperCase()}][LOWMEM] Running: ${name} (sequential)"
+											echo "[${arch.toUpperCase()}] Running: ${name} (sequential)"
 											stageClosure()
 										}
 									} else {

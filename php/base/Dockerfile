@@ -1,17 +1,22 @@
 ARG VERSION=8.5.7
 FROM php:${VERSION}-fpm-alpine AS base
 
+ARG IPE_PROCESSOR_COUNT=2
+
 LABEL authors="Tomas Vojik"
 LABEL maintainer="Tomas Vojik <vojik@esoul.cz>"
 
 # Add PHP extension installer
 COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-# Install base extensions
+# Install slow, stable telemetry/RPC extensions in their own cacheable layer.
 RUN install-php-extensions \
     grpc \
     protobuf \
-    opentelemetry \
+    opentelemetry
+
+# Install base extensions
+RUN install-php-extensions \
     mbstring \
     bcmath \
     igbinary \
