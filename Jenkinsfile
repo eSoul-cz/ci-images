@@ -152,6 +152,7 @@ pipeline {
 												if (v.stages) {
 													v.stages.each { s ->
 														def archTag = "${baseTag}-${arch}"
+														def cacheTag = "buildcache-${baseTag}-${s.target}-${arch}"
 														def buildParams = [
 															registry: imageRegistry,
 															image: "${imageName}${s.imageSuffix}",
@@ -159,6 +160,7 @@ pipeline {
 															tag: archTag,
 															platform: config.platform,
 															push: true,
+															cacheRef: "${imageRegistry}/${imageName}${s.imageSuffix}:${cacheTag}",
 															extraFlags: "--target ${s.target}"
 														]
 														if (v.buildArgs) buildParams.buildArgs = v.buildArgs
@@ -166,13 +168,15 @@ pipeline {
 													}
 												} else {
 													def archTag = "${baseTag}-${arch}"
+													def cacheTag = "buildcache-${baseTag}-${arch}"
 													def buildParams = [
 														registry: imageRegistry,
 														image: imageName,
 														contextDir: v.dir,
 														tag: archTag,
 														platform: config.platform,
-														push: true
+														push: true,
+														cacheRef: "${imageRegistry}/${imageName}:${cacheTag}"
 													]
 													if (v.buildArgs) buildParams.buildArgs = v.buildArgs
 													if (v.target) buildParams.extraFlags = "--target ${v.target}"
