@@ -47,7 +47,7 @@ pipeline {
 							name: 'node',
 							versions: [
 								[dir: 'node/24', tag: '24'],
-								[dir: 'node/25', tag: '25'],
+								[dir: 'node/26', tag: '26'],
 								[dir: 'node/lts', tags: ['lts', 'latest']]
 							]
 						],

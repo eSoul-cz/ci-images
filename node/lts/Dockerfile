@@ -6,4 +6,4 @@ LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
 # Install pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install --global corepack@latest && corepack enable && corepack prepare pnpm@latest --activate

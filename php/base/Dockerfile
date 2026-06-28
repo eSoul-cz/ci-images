@@ -1,4 +1,4 @@
-ARG VERSION=8.5.3
+ARG VERSION=8.5.7
 FROM php:${VERSION}-fpm-alpine AS base
 
 LABEL authors="Tomas Vojik"
