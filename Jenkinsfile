@@ -66,7 +66,8 @@ pipeline {
 							versions: [
 								[
 									dir: 'php/8_4',
-									tag: '8.4',
+									tags: ['8.4.25', '8.4'],
+									buildArgs: [VERSION: '8.4.25'],
 									stages: [
 										[
 											target: 'base',
@@ -80,7 +81,8 @@ pipeline {
 								],
 								[
 									dir: 'php/8_5',
-									tags: ['8.5', '8', 'latest'],
+									tags: ['8.5.10', '8.5', '8', 'latest'],
+									buildArgs: [VERSION: '8.5.10'],
 									stages: [
 										[
 											target: 'base',
@@ -95,13 +97,30 @@ pipeline {
 							]
 						],
 						[
+							name: 'php-cli',
+							registry: env.STARTERS_REGISTRY,
+							registryHost: env.REGISTRY_HOST,
+							versions: [
+								[
+									dir: 'php/roadrunner',
+									tags: ['8.5.10', '8.5', '8', 'latest'],
+									buildArgs: [VERSION: '8.5.10'],
+									stages: [
+										[target: 'runtime',    imageSuffix: ''],
+										[target: 'roadrunner', imageSuffix: '-roadrunner']
+									]
+								]
+							]
+						],
+						[
 							name: 'php-fpm',
 							registry: env.STARTERS_REGISTRY,
 							registryHost: env.REGISTRY_HOST,
 							versions: [
 								[
 									dir: 'php/base',
-									tags: ['8.5.7', '8.5', '8', 'latest'],
+									tags: ['8.5.10', '8.5', '8', 'latest'],
+									buildArgs: [VERSION: '8.5.10'],
 									// Built sequentially so each stage reuses the previous layer cache
 									stages: [
 										[target: 'base',            imageSuffix: ''],
@@ -111,8 +130,8 @@ pipeline {
 								],
 								[
 									dir: 'php/base',
-									tag: '8.4',
-									buildArgs: [VERSION: '8.4'],
+									tags: ['8.4.25', '8.4'],
+									buildArgs: [VERSION: '8.4.25'],
 									stages: [
 										[target: 'base',            imageSuffix: ''],
 										[target: 'laravel-minimal', imageSuffix: '-laravel-minimal'],
@@ -167,7 +186,7 @@ pipeline {
 															cacheRef: "${imageRegistry}/${imageName}${s.imageSuffix}:${cacheTag}",
 															extraFlags: "--target ${s.target}"
 														]
-														if (imageName == 'php' || imageName == 'php-fpm') buildParams.buildArgs = [IPE_PROCESSOR_COUNT: env.PHP_BUILD_PROCESSOR_COUNT]
+														if (imageName.startsWith('php')) buildParams.buildArgs = [IPE_PROCESSOR_COUNT: env.PHP_BUILD_PROCESSOR_COUNT]
 														if (v.buildArgs) buildParams.buildArgs = (buildParams.buildArgs ?: [:]) + v.buildArgs
 														dockerBuildImage(buildParams)
 													}

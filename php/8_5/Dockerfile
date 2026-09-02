@@ -1,4 +1,5 @@
-FROM php:8.5-cli-alpine AS base
+ARG VERSION=8.5.10
+FROM php:${VERSION}-cli-alpine AS base
 
 ARG IPE_PROCESSOR_COUNT=2
 
