@@ -5,6 +5,27 @@ def imageMatrix = null
 
 def archs = null
 
+// One entry per published multi-arch image: [registry, name, baseTag, extraTags].
+def publishedImages(matrix, defaultRegistry) {
+	def images = []
+	matrix.each { imageConfig ->
+		def registry = imageConfig.registry ?: defaultRegistry
+		imageConfig.versions.each { v ->
+			def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
+			def suffixes = v.stages ? v.stages.collect { it.imageSuffix } : ['']
+			suffixes.each { suffix ->
+				images << [
+					registry: registry,
+					name: "${imageConfig.name}${suffix}",
+					baseTag: baseTag,
+					extraTags: v.tags ?: []
+				]
+			}
+		}
+	}
+	return images
+}
+
 pipeline {
 	agent none
 
@@ -252,37 +273,17 @@ pipeline {
 
 						def mergeListByRegistry = [:]
 
-						imageMatrix.each { imageConfig ->
-							def imageName = imageConfig.name
-							def imageRegistry = imageConfig.registry ?: env.REGISTRY
-							mergeListByRegistry[imageRegistry] = mergeListByRegistry[imageRegistry] ?: []
-							imageConfig.versions.each { v ->
-								def baseTag = v.tag ?: (v.tags?.size() ? v.tags[0] : 'temp')
-
-								if (v.stages) {
-									v.stages.each { s ->
-										mergeListByRegistry[imageRegistry] << [
-											name: "${imageName}${s.imageSuffix}",
-											baseTag: baseTag,
-											archTags: [
-												amd64: "${baseTag}-amd64",
-												arm64: "${baseTag}-arm64"
-											],
-											extraTags: v.tags ?: []
-										]
-									}
-								} else {
-									mergeListByRegistry[imageRegistry] << [
-										name: imageName,
-										baseTag: baseTag,
-										archTags: [
-											amd64: "${baseTag}-amd64",
-											arm64: "${baseTag}-arm64"
-										],
-										extraTags: v.tags ?: []
-									]
-								}
-							}
+						publishedImages(imageMatrix, env.REGISTRY).each { image ->
+							mergeListByRegistry[image.registry] = mergeListByRegistry[image.registry] ?: []
+							mergeListByRegistry[image.registry] << [
+								name: image.name,
+								baseTag: image.baseTag,
+								archTags: [
+									amd64: "${image.baseTag}-amd64",
+									arm64: "${image.baseTag}-arm64"
+								],
+								extraTags: image.extraTags
+							]
 						}
 
 						mergeListByRegistry.each { registry, mergeList ->
