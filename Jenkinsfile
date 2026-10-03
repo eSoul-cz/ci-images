@@ -45,6 +45,11 @@ pipeline {
 			defaultValue: true,
 			description: 'Run the Trivy vulnerability report on published images. Findings mark only the scan stage UNSTABLE.'
 		)
+		booleanParam(
+			name: 'RENOVATE',
+			defaultValue: true,
+			description: 'Run Renovate on master to open version-update PRs (see renovate.json5). Failures mark only the Renovate stage UNSTABLE.'
+		)
 	}
 
 	environment {
@@ -65,9 +70,47 @@ pipeline {
 		// Soft Trivy report (scripts/trivy-scan.sh forwards every TRIVY_* variable).
 		TRIVY_SEVERITY = "HIGH,CRITICAL"
 		TRIVY_IGNORE_UNFIXED = "true"
+
+		// Self-hosted Renovate; renovate.json5 bumps this version too.
+		RENOVATE_IMAGE = "renovate/renovate:44.132.4"
 	}
 
 	stages {
+		// Runs first so update PRs still open when an image build breaks.
+		stage('Renovate') {
+			when {
+				expression { params.RENOVATE != false }
+				expression { !env.BRANCH_NAME || env.BRANCH_NAME == 'master' }
+				expression {
+					def timerCauses = currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')
+					def userCauses = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+					return !timerCauses.isEmpty() || !userCauses.isEmpty()
+				}
+			}
+			steps {
+				// Soft step: Renovate problems must never block the nightly image build.
+				catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+					script {
+						node(env.AMD64_LABEL) {
+							// GitHub App credential: the password is a short-lived installation token.
+							withCredentials([usernamePassword(credentialsId: 'renovate', usernameVariable: 'RENOVATE_APP_ID', passwordVariable: 'RENOVATE_TOKEN')]) {
+								sh '''
+									docker run --rm \
+										-e RENOVATE_TOKEN \
+										-e RENOVATE_PLATFORM=github \
+										-e RENOVATE_REPOSITORIES=eSoul-cz/ci-images \
+										-e RENOVATE_ONBOARDING=false \
+										-e RENOVATE_REQUIRE_CONFIG=required \
+										-e LOG_LEVEL=info \
+										"$RENOVATE_IMAGE"
+								'''
+							}
+						}
+					}
+				}
+			}
+		}
+
 		stage('Build + Push per-arch (parallel)') {
 			when {
 				beforeAgent true

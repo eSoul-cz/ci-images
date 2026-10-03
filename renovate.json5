@@ -1,0 +1,64 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended', ':dependencyDashboard'],
+  timezone: 'Europe/Prague',
+  // Batch update PRs once a week; the nightly build still refreshes floating tags.
+  schedule: ['* 0-5 * * 1'],
+  customManagers: [
+    {
+      // Jenkinsfile repeats the PHP version as the first tag and the VERSION build arg.
+      customType: 'regex',
+      managerFilePatterns: ['/^Jenkinsfile$/'],
+      matchStringsStrategy: 'any',
+      matchStrings: [
+        "tags: \\['(?<currentValue>\\d+\\.\\d+\\.\\d+)'",
+        "VERSION: '(?<currentValue>\\d+\\.\\d+\\.\\d+)'",
+      ],
+      depNameTemplate: 'php',
+      datasourceTemplate: 'docker',
+    },
+    {
+      customType: 'regex',
+      managerFilePatterns: ['/^scripts/trivy-scan\\.sh$/'],
+      matchStrings: ['aquasec/trivy:(?<currentValue>[^@"]+)@(?<currentDigest>sha256:[a-f0-9]+)'],
+      depNameTemplate: 'aquasec/trivy',
+      datasourceTemplate: 'docker',
+    },
+    {
+      // Self-hosted Renovate image run by the Jenkinsfile "Renovate" stage.
+      customType: 'regex',
+      managerFilePatterns: ['/^Jenkinsfile$/'],
+      matchStrings: ['RENOVATE_IMAGE = "renovate/renovate:(?<currentValue>[^"]+)"'],
+      depNameTemplate: 'renovate/renovate',
+      datasourceTemplate: 'docker',
+    },
+  ],
+  packageRules: [
+    {
+      // Each php/<dir> and Jenkinsfile entry tracks one PHP minor line; new minors are added by hand.
+      // Separate patches so 8.4.x still gets 8.4 patches while 8.5 exists.
+      matchPackageNames: ['php'],
+      separateMinorPatch: true,
+    },
+    {
+      matchPackageNames: ['php'],
+      matchUpdateTypes: ['minor', 'major'],
+      enabled: false,
+    },
+    {
+      matchPackageNames: ['php'],
+      groupName: 'PHP patch releases',
+    },
+    {
+      // node/<major> directories track one major each; new majors are added by hand.
+      matchPackageNames: ['node'],
+      matchUpdateTypes: ['major'],
+      enabled: false,
+    },
+    {
+      // Consumers' @playwright/test must match the browsers in this image.
+      matchPackageNames: ['mcr.microsoft.com/playwright'],
+      dependencyDashboardApproval: true,
+    },
+  ],
+}
