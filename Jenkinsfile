@@ -39,6 +39,14 @@ pipeline {
 		overrideIndexTriggers(false)
 	}
 
+	parameters {
+		booleanParam(
+			name: 'SECURITY_SCAN',
+			defaultValue: true,
+			description: 'Run the Trivy vulnerability report on published images. Findings mark only the scan stage UNSTABLE.'
+		)
+	}
+
 	environment {
 		REGISTRY = "rg.fr-par.scw.cloud/testing-images"
 		STARTERS_REGISTRY = "rg.fr-par.scw.cloud/esoul-starters"
@@ -53,6 +61,10 @@ pipeline {
 		// Keep native Docker/PHP image builds from saturating shared Jenkins hosts.
 		CI_IMAGES_PARALLEL_BUILDS = "false"
 		PHP_BUILD_PROCESSOR_COUNT = "2"
+
+		// Soft Trivy report (scripts/trivy-scan.sh forwards every TRIVY_* variable).
+		TRIVY_SEVERITY = "HIGH,CRITICAL"
+		TRIVY_IGNORE_UNFIXED = "true"
 	}
 
 	stages {
@@ -288,6 +300,50 @@ pipeline {
 
 						mergeListByRegistry.each { registry, mergeList ->
 							dockerMergeManifests(registry: registry, images: mergeList)
+						}
+					}
+				}
+			}
+		}
+
+		stage('Security scan (Trivy)') {
+			agent any
+			when {
+				beforeAgent true
+				allOf {
+					expression { params.SECURITY_SCAN != false }
+					expression {
+						def timerCauses = currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause')
+						def userCauses = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+						return (!timerCauses.isEmpty() && (!env.BRANCH_NAME || env.BRANCH_NAME == 'master')) || !userCauses.isEmpty()
+					}
+				}
+			}
+			steps {
+				// Soft report: nothing in this stage may fail the build or block publishing.
+				catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+					script {
+						def reportDir = 'build/trivy'
+						def refs = publishedImages(imageMatrix, env.REGISTRY).collect { image ->
+							"'${image.registry}/${image.name}:${image.baseTag}'"
+						}
+						def status = 0
+
+						sh "rm -rf '${reportDir}'"
+						withCredentials([string(credentialsId: 'scaleway_secret_key', variable: 'TRIVY_PASSWORD')]) {
+							withEnv(['TRIVY_USERNAME=nologin', 'TRIVY_IMAGE_SRC=remote']) {
+								status = sh(
+									returnStatus: true,
+									script: "./scripts/trivy-scan.sh -o '${reportDir}' ${refs.join(' ')}"
+								)
+							}
+						}
+						archiveArtifacts(artifacts: "${reportDir}/*", allowEmptyArchive: true, fingerprint: false)
+
+						if (status == 10) {
+							error("Trivy found ${env.TRIVY_SEVERITY} vulnerabilities with available fixes; see archived build/trivy reports.")
+						} else if (status != 0) {
+							error("Trivy scan did not complete for every image (exit ${status}); see the log above.")
 						}
 					}
 				}
