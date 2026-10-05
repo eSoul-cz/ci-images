@@ -72,7 +72,7 @@ pipeline {
 		TRIVY_IGNORE_UNFIXED = "true"
 
 		// Self-hosted Renovate; renovate.json5 bumps this version too.
-		RENOVATE_IMAGE = "renovate/renovate:44.132.4"
+		RENOVATE_IMAGE = "renovate/renovate:44.133.0"
 	}
 
 	stages {
