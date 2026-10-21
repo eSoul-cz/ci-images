@@ -1,4 +1,4 @@
-ARG VERSION=8.5.11
+ARG VERSION=8.5.12
 ARG ROADRUNNER_VERSION=2025.1.15
 
 FROM ghcr.io/roadrunner-server/roadrunner:${ROADRUNNER_VERSION} AS roadrunner-binary

@@ -142,8 +142,8 @@ pipeline {
 							versions: [
 								[
 									dir: 'php/8_4',
-									tags: ['8.4.26', '8.4'],
-									buildArgs: [VERSION: '8.4.26'],
+									tags: ['8.4.27', '8.4'],
+									buildArgs: [VERSION: '8.4.27'],
 									stages: [
 										[
 											target: 'base',
@@ -157,8 +157,8 @@ pipeline {
 								],
 								[
 									dir: 'php/8_5',
-									tags: ['8.5.11', '8.5', '8', 'latest'],
-									buildArgs: [VERSION: '8.5.11'],
+									tags: ['8.5.12', '8.5', '8', 'latest'],
+									buildArgs: [VERSION: '8.5.12'],
 									stages: [
 										[
 											target: 'base',
@@ -179,8 +179,8 @@ pipeline {
 							versions: [
 								[
 									dir: 'php/roadrunner',
-									tags: ['8.5.11', '8.5', '8', 'latest'],
-									buildArgs: [VERSION: '8.5.11'],
+									tags: ['8.5.12', '8.5', '8', 'latest'],
+									buildArgs: [VERSION: '8.5.12'],
 									stages: [
 										[target: 'runtime',    imageSuffix: ''],
 										[target: 'roadrunner', imageSuffix: '-roadrunner']
@@ -195,8 +195,8 @@ pipeline {
 							versions: [
 								[
 									dir: 'php/base',
-									tags: ['8.5.11', '8.5', '8', 'latest'],
-									buildArgs: [VERSION: '8.5.11'],
+									tags: ['8.5.12', '8.5', '8', 'latest'],
+									buildArgs: [VERSION: '8.5.12'],
 									// Built sequentially so each stage reuses the previous layer cache
 									stages: [
 										[target: 'base',            imageSuffix: ''],
@@ -206,8 +206,8 @@ pipeline {
 								],
 								[
 									dir: 'php/base',
-									tags: ['8.4.26', '8.4'],
-									buildArgs: [VERSION: '8.4.26'],
+									tags: ['8.4.27', '8.4'],
+									buildArgs: [VERSION: '8.4.27'],
 									stages: [
 										[target: 'base',            imageSuffix: ''],
 										[target: 'laravel-minimal', imageSuffix: '-laravel-minimal'],
