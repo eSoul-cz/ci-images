@@ -13,7 +13,6 @@ COPY --from=ghcr.io/mlocati/php-extension-installer:2.12.3@sha256:ac4b252c153a9f
 
 # Keep slow, stable telemetry/RPC extensions in their own cacheable layer.
 RUN install-php-extensions \
-    grpc \
     protobuf \
     opentelemetry
 

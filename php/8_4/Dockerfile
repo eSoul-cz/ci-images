@@ -15,7 +15,6 @@ RUN apk add --no-cache git
 # Install slow, stable telemetry/RPC extensions in their own cacheable layer.
 RUN install-php-extensions \
     opentelemetry \
-    grpc \
     protobuf
 
 # Install some base extensions
