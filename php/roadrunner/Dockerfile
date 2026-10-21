@@ -9,7 +9,7 @@ ARG IPE_PROCESSOR_COUNT=2
 LABEL authors="Tomas Vojik"
 LABEL maintainer="Tomas Vojik <vojik@esoul.cz>"
 
-COPY --from=ghcr.io/mlocati/php-extension-installer:2.12.0@sha256:1afade3e29cfc97362cf5885e5ac333bf2faab1146cb28ebbb59b17e68f87e88 /usr/bin/install-php-extensions /usr/local/bin/
+COPY --from=ghcr.io/mlocati/php-extension-installer:2.12.3@sha256:ac4b252c153a9f6de5578ff2c417790aba836bb49855543144606033eceda253 /usr/bin/install-php-extensions /usr/local/bin/
 
 # Keep slow, stable telemetry/RPC extensions in their own cacheable layer.
 RUN install-php-extensions \
