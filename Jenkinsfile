@@ -139,6 +139,8 @@ pipeline {
 						],
 						[
 							name: 'php',
+							// Shared context so Dockerfiles can COPY php/conf.d.
+							context: 'php',
 							versions: [
 								[
 									dir: 'php/8_4',
@@ -174,6 +176,7 @@ pipeline {
 						],
 						[
 							name: 'php-cli',
+							context: 'php',
 							registry: env.STARTERS_REGISTRY,
 							registryHost: env.REGISTRY_HOST,
 							versions: [
@@ -190,6 +193,7 @@ pipeline {
 						],
 						[
 							name: 'php-fpm',
+							context: 'php',
 							registry: env.STARTERS_REGISTRY,
 							registryHost: env.REGISTRY_HOST,
 							versions: [
@@ -243,6 +247,7 @@ pipeline {
 
 									imageMatrix.each { imageConfig ->
 										def imageRegistry = imageConfig.registry ?: env.REGISTRY
+										def contextDir = imageConfig.context
 										buildStages["Building ${imageRegistry}/${imageConfig.name} for ${arch}"] = {
 											def imageName = imageConfig.name
 											imageConfig.versions.each { v ->
@@ -255,7 +260,8 @@ pipeline {
 														def buildParams = [
 															registry: imageRegistry,
 															image: "${imageName}${s.imageSuffix}",
-															contextDir: v.dir,
+															contextDir: contextDir ?: v.dir,
+															dockerfile: "${v.dir}/Dockerfile",
 															tag: archTag,
 															platform: config.platform,
 															push: true,
@@ -272,7 +278,8 @@ pipeline {
 													def buildParams = [
 														registry: imageRegistry,
 														image: imageName,
-														contextDir: v.dir,
+														contextDir: contextDir ?: v.dir,
+														dockerfile: "${v.dir}/Dockerfile",
 														tag: archTag,
 														platform: config.platform,
 														push: true,
