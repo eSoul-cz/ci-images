@@ -9,6 +9,17 @@ This repository contains Dockerfiles and related resources for building Docker i
 - **php/**: PHP 8.4/8.5 CI and FPM/Laravel images, plus production PHP 8.5 CLI and RoadRunner images
 - **playwright/**: Microsoft Playwright image with pnpm
 
+### PHP configuration
+
+`php/conf.d/` holds the eSoul PHP settings shared by all PHP images, so PHP images build with `php/` as the context:
+
+```sh
+docker build -f php/base/Dockerfile --target laravel php
+```
+
+- `10-esoul-security.ini` (every PHP image): disables `session.upload_progress` (CVE-2026-115560 / CVE-2026-109619 mitigation) and `expose_php`.
+- `20-esoul-runtime.ini` (FPM and RoadRunner only): production error handling, `zend.assertions=-1`, and OPcache tuning. `PHP_OPCACHE_VALIDATE_TIMESTAMPS`, `PHP_OPCACHE_MEMORY_CONSUMPTION` and `PHP_OPCACHE_ENABLE_CLI` override it at runtime.
+
 ## Security scan (Trivy)
 
 `scripts/trivy-scan.sh` reports known vulnerabilities with a digest-pinned Trivy container, so only Docker is required:
