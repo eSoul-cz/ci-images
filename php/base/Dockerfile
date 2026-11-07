@@ -24,6 +24,9 @@ RUN install-php-extensions \
     sockets \
     zip
 
+# eSoul PHP configuration (build context is php/).
+COPY conf.d/10-esoul-security.ini $PHP_INI_DIR/conf.d/
+
 # ── Laravel minimal ──────────────────────────────────────────────────────────
 FROM base AS laravel-minimal
 

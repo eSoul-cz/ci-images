@@ -34,6 +34,9 @@ RUN install-php-extensions \
     gettext \
     exif
 
+# eSoul PHP configuration (build context is php/).
+COPY conf.d/10-esoul-security.ini $PHP_INI_DIR/conf.d/
+
 WORKDIR /app
 
 FROM runtime AS roadrunner

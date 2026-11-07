@@ -45,6 +45,9 @@ RUN install-php-extensions \
     imagick \
     pcntl
 
+# eSoul PHP configuration (build context is php/).
+COPY conf.d/10-esoul-security.ini $PHP_INI_DIR/conf.d/
+
 # Create php user and group (available if needed, but don't switch to it by default)
 # This allows the container to run as any user, which is important for CI/CD
 # where mounted volumes may have different ownership
