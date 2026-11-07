@@ -34,8 +34,10 @@ RUN install-php-extensions \
     gettext \
     exif
 
-# eSoul PHP configuration (build context is php/).
-COPY conf.d/10-esoul-security.ini $PHP_INI_DIR/conf.d/
+# eSoul PHP configuration (build context is php/). Workers are long-lived CLI
+# processes, so they need the CLI opcache.
+COPY conf.d/10-esoul-security.ini conf.d/20-esoul-runtime.ini $PHP_INI_DIR/conf.d/
+ENV PHP_OPCACHE_ENABLE_CLI=1
 
 WORKDIR /app
 
