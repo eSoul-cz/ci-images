@@ -21,7 +21,7 @@
 # overrides the Docker volume that caches the vulnerability database.
 set -euo pipefail
 
-SCAN_TRIVY_IMAGE="${SCAN_TRIVY_IMAGE:-aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222}"
+SCAN_TRIVY_IMAGE="${SCAN_TRIVY_IMAGE:-aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb}"
 SCAN_CACHE_VOLUME="${SCAN_CACHE_VOLUME:-trivy-cache}"
 export TRIVY_SEVERITY="${TRIVY_SEVERITY:-HIGH,CRITICAL}"
 export TRIVY_IGNORE_UNFIXED="${TRIVY_IGNORE_UNFIXED:-true}"
