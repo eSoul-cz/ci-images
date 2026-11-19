@@ -20,6 +20,22 @@ docker build -f php/base/Dockerfile --target laravel php
 - `10-esoul-security.ini` (every PHP image): disables `session.upload_progress` (CVE-2026-115560 / CVE-2026-109619 mitigation) and `expose_php`.
 - `20-esoul-runtime.ini` (FPM and RoadRunner only): production error handling, `zend.assertions=-1`, and OPcache tuning. `PHP_OPCACHE_VALIDATE_TIMESTAMPS`, `PHP_OPCACHE_MEMORY_CONSUMPTION` and `PHP_OPCACHE_ENABLE_CLI` override it at runtime.
 
+### Composer over SSH
+
+`php/ssh/` gives every PHP image what Composer needs to clone from GitHub over SSH, for a private package or while GitHub's API fails. No image holds a key: the key is the one in the SSH agent Jenkins forwards (`composerAuth` of the eSoul Jenkins libraries).
+
+- `github_known_hosts` (every PHP image, as `/etc/ssh/ssh_known_hosts`): GitHub's SSH host keys, so a clone verifies the server it talks to and no other host is trusted. They are the `ssh_keys` of <https://api.github.com/meta>; replace the file when GitHub rotates a key.
+- CI images (`php/8_4`, `php/8_5`): the OpenSSH client and `ssh`, installed as `/usr/local/bin/ssh` in front of the real one. Jenkins runs these containers as the uid of its own account, which the image's `/etc/passwd` does not know, and OpenSSH refuses to start for such a user; the script answers that one lookup through `nss_wrapper` and then runs the real client.
+- FPM/Laravel and CLI/RoadRunner images: `git` and the OpenSSH client, for `composer install` in an application's image build:
+
+  ```dockerfile
+  # syntax=docker/dockerfile:1
+  RUN --mount=type=secret,id=composer_auth,env=COMPOSER_AUTH --mount=type=ssh \
+      composer install --no-dev --prefer-dist --no-interaction --no-progress
+  ```
+
+  They add about 12 MB (eight packages) to these images, which are also the runtime images of the applications.
+
 ## Security scan (Trivy)
 
 `scripts/trivy-scan.sh` reports known vulnerabilities with a digest-pinned Trivy container, so only Docker is required:
