@@ -1,0 +1,18 @@
+#!/bin/sh
+# ssh for CI containers. Jenkins runs them as the uid of its own account on the node, which
+# has no entry in the image's /etc/passwd, and OpenSSH refuses to start for such a user
+# ("No user exists for uid ..."). For that case the lookup is answered from a copy of
+# /etc/passwd with the user added (nss_wrapper); for a user the image knows nothing changes.
+set -eu
+
+uid=$(id -u)
+if ! awk -F: -v uid="$uid" '$3 == uid { found = 1 } END { exit !found }' /etc/passwd; then
+    passwd="${TMPDIR:-/tmp}/.ssh-passwd-$uid"
+    # Several clones run at once: the file appears complete or not at all.
+    { cat /etc/passwd; echo "ci:x:$uid:$(id -g):CI:${HOME:-/tmp}:/bin/sh"; } >"$passwd.$$"
+    mv -f "$passwd.$$" "$passwd"
+    export LD_PRELOAD="libnss_wrapper.so${LD_PRELOAD:+ $LD_PRELOAD}"
+    export NSS_WRAPPER_PASSWD="$passwd" NSS_WRAPPER_GROUP=/etc/group
+fi
+
+exec /usr/bin/ssh "$@"

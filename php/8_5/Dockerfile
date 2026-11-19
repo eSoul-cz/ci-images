@@ -48,6 +48,13 @@ RUN install-php-extensions \
 # eSoul PHP configuration (build context is php/).
 COPY conf.d/10-esoul-security.ini $PHP_INI_DIR/conf.d/
 
+# Composer over SSH, for a private package or while GitHub's API fails: the client, GitHub's
+# host keys, and an `ssh` that also starts for the uid Jenkins runs the container as (ssh/ssh).
+# No key is in the image; it comes from the SSH agent Jenkins forwards.
+RUN apk add --no-cache openssh-client-default nss_wrapper
+COPY ssh/github_known_hosts /etc/ssh/ssh_known_hosts
+COPY --chmod=755 ssh/ssh /usr/local/bin/ssh
+
 # Create php user and group (available if needed, but don't switch to it by default)
 # This allows the container to run as any user, which is important for CI/CD
 # where mounted volumes may have different ownership

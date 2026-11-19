@@ -27,6 +27,12 @@ RUN install-php-extensions \
 # eSoul PHP configuration (build context is php/).
 COPY conf.d/10-esoul-security.ini conf.d/20-esoul-runtime.ini $PHP_INI_DIR/conf.d/
 
+# For `composer install` while an application image is built: git and an SSH client with
+# GitHub's host keys, so a private package, or any package while GitHub's API fails, can be
+# cloned through the SSH agent of the build (RUN --mount=type=ssh). No key is in the image.
+RUN apk add --no-cache git openssh-client-default
+COPY ssh/github_known_hosts /etc/ssh/ssh_known_hosts
+
 # ── Laravel minimal ──────────────────────────────────────────────────────────
 FROM base AS laravel-minimal
 
