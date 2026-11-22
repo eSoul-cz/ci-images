@@ -171,6 +171,23 @@ pipeline {
 											imageSuffix: '-node'
 										]
 									],
+								],
+								[
+									// PHP 8.6 test runs of packages; `8` and `latest` stay on 8.5. Extensions that do not
+									// compile on 8.6 yet are listed in php/8_6/Dockerfile.
+									dir: 'php/8_6',
+									tags: ['8.6.0', '8.6'],
+									buildArgs: [VERSION: '8.6.0'],
+									stages: [
+										[
+											target: 'base',
+											imageSuffix: ''
+										],
+										[
+											target: 'node',
+											imageSuffix: '-node'
+										]
+									],
 								]
 							]
 						],
