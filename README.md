@@ -6,7 +6,7 @@ This repository contains Dockerfiles and related resources for building Docker i
 
 ### Docker Images
 - **node/**: Node.js images with different versions (24, 26, LTS)
-- **php/**: PHP 8.4/8.5 CI and FPM/Laravel images, plus production PHP 8.5 CLI and RoadRunner images
+- **php/**: PHP 8.4/8.5/8.6 CI images, PHP 8.4/8.5 FPM/Laravel images, plus production PHP 8.5 CLI and RoadRunner images. In the PHP 8.6 CI image (`php:8.6`) the extensions whose PECL releases do not compile on 8.6 yet come from [PIE](https://github.com/php/pie): igbinary, redis and imagick at pinned commits of their 8.6-ready branches, imap from `sirlouen/imap`. pcov is replaced by Xdebug (`xdebug.mode=off` unless `XDEBUG_MODE` is set) and protobuf is missing (as of 2026-11-22; see `php/8_6/Dockerfile`)
 - **playwright/**: Microsoft Playwright image with pnpm
 
 ### PHP configuration
@@ -25,7 +25,7 @@ docker build -f php/base/Dockerfile --target laravel php
 `php/ssh/` gives every PHP image what Composer needs to clone from GitHub over SSH, for a private package or while GitHub's API fails. No image holds a key: the key is the one in the SSH agent Jenkins forwards (`composerAuth` of the eSoul Jenkins libraries).
 
 - `github_known_hosts` (every PHP image, as `/etc/ssh/ssh_known_hosts`): GitHub's SSH host keys, so a clone verifies the server it talks to and no other host is trusted. They are the `ssh_keys` of <https://api.github.com/meta>; replace the file when GitHub rotates a key.
-- CI images (`php/8_4`, `php/8_5`): the OpenSSH client and `ssh`, installed as `/usr/local/bin/ssh` in front of the real one. Jenkins runs these containers as the uid of its own account, which the image's `/etc/passwd` does not know, and OpenSSH refuses to start for such a user; the script answers that one lookup through `nss_wrapper` and then runs the real client.
+- CI images (`php/8_4`, `php/8_5`, `php/8_6`): the OpenSSH client and `ssh`, installed as `/usr/local/bin/ssh` in front of the real one. Jenkins runs these containers as the uid of its own account, which the image's `/etc/passwd` does not know, and OpenSSH refuses to start for such a user; the script answers that one lookup through `nss_wrapper` and then runs the real client.
 - FPM/Laravel and CLI/RoadRunner images: `git` and the OpenSSH client, for `composer install` in an application's image build:
 
   ```dockerfile
