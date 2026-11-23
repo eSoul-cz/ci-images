@@ -123,7 +123,7 @@ pipeline {
 			steps {
 				script {
 					// eSoul-cz/guidelines release whose PHAR goes into the esoul-guidelines image; renovate.json5 bumps it.
-					def guidelinesVersion = '0.3.3'
+					def guidelinesVersion = '0.3.4'
 
 					imageMatrix = [
 						[
