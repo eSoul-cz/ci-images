@@ -54,16 +54,16 @@ The Jenkins pipeline runs the same script on every published image after the mul
 
 ## esoul-guidelines image
 
-`esoul-guidelines/` packages the installer of [eSoul-cz/guidelines](https://github.com/eSoul-cz/guidelines) for repositories and pipelines without PHP (an Astro site, for example). It is the PHP CLI Alpine image (`php:<VERSION>-cli-alpine`, nothing else added) plus the PHAR of one guidelines release as `/usr/local/bin/esoul-guidelines`, which is the entrypoint. The image is published as `rg.fr-par.scw.cloud/testing-images/esoul-guidelines` with the tags `<release>` (`0.3.1`), `<minor>` (`0.3`) and `latest`; log in first with `docker login rg.fr-par.scw.cloud`.
+`esoul-guidelines/` packages the installer of [eSoul-cz/guidelines](https://github.com/eSoul-cz/guidelines) for repositories and pipelines without PHP (an Astro site, for example). It is the PHP CLI Alpine image (`php:<VERSION>-cli-alpine`, nothing else added) plus the PHAR of one guidelines release as `/usr/local/bin/esoul-guidelines`, which is the entrypoint. The image is published as `rg.fr-par.scw.cloud/testing-images/esoul-guidelines` with the tags `<release>` (`0.3.2`), `<minor>` (`0.3`) and `latest`; log in first with `docker login rg.fr-par.scw.cloud`.
 
 ```sh
-docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/app" -w /app rg.fr-par.scw.cloud/testing-images/esoul-guidelines:0.3.1 sync
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/app" -w /app rg.fr-par.scw.cloud/testing-images/esoul-guidelines:0.3.2 sync
 ```
 
 Arguments are those of `esoul-guidelines` (`init`, `sync`, `check`, `list`; see the guidelines README). The project is the mounted `/app`, which is also the default working directory.
 
 - `--user "$(id -u):$(id -g)"` makes the generated files belong to the invoking user. Without it the image runs as uid `1000`; Jenkins passes its own uid anyway. The PHAR needs no home directory or other writable path.
-- The guidelines release is the only input: `guidelinesVersion` in the `Jenkinsfile` is passed as the `GUIDELINES_VERSION` build argument, and the Dockerfile downloads that release's `esoul-guidelines.phar` and fails the build unless it matches the release's `esoul-guidelines.phar.sha256`. Build locally with `docker build --build-arg GUIDELINES_VERSION=0.3.1 -t local/esoul-guidelines esoul-guidelines`.
+- The guidelines release is the only input: `guidelinesVersion` in the `Jenkinsfile` is passed as the `GUIDELINES_VERSION` build argument, and the Dockerfile downloads that release's `esoul-guidelines.phar` and fails the build unless it matches the release's `esoul-guidelines.phar.sha256`. Build locally with `docker build --build-arg GUIDELINES_VERSION=0.3.2 -t local/esoul-guidelines esoul-guidelines`.
 - The image pins the release, so a project updates the guidelines by moving to a newer image tag and running `sync`.
 
 ## Version updates (Renovate)

@@ -123,7 +123,7 @@ pipeline {
 			steps {
 				script {
 					// eSoul-cz/guidelines release whose PHAR goes into the esoul-guidelines image; renovate.json5 bumps it.
-					def guidelinesVersion = '0.3.1'
+					def guidelinesVersion = '0.3.2'
 
 					imageMatrix = [
 						[
@@ -246,9 +246,9 @@ pipeline {
 							versions: [
 								[
 									dir: 'esoul-guidelines',
-									// Tags follow the eSoul-cz/guidelines release the image carries: 0.3.1, 0.3, latest.
+									// Tags follow the eSoul-cz/guidelines release the image carries: 0.3.2, 0.3, latest.
 									tags: [guidelinesVersion, guidelinesVersion.substring(0, guidelinesVersion.lastIndexOf('.')), 'latest'],
-									buildArgs: [VERSION: '8.5.12', GUIDELINES_VERSION: guidelinesVersion]
+									buildArgs: [VERSION: '8.5.13', GUIDELINES_VERSION: guidelinesVersion]
 								]
 							]
 						]
