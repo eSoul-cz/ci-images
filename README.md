@@ -56,6 +56,8 @@ The Jenkins pipeline runs the same script on every published image after the mul
 
 `esoul-guidelines/` packages the installer of [eSoul-cz/guidelines](https://github.com/eSoul-cz/guidelines) for repositories and pipelines without PHP (an Astro site, for example). It is the PHP CLI Alpine image (`php:<VERSION>-cli-alpine`, nothing else added) plus the PHAR of one guidelines release as `/usr/local/bin/esoul-guidelines`, which is the entrypoint. The image is published as `rg.fr-par.scw.cloud/testing-images/esoul-guidelines` with the tags `<release>` (the `guidelinesVersion` in the `Jenkinsfile`), `<minor>` (e.g. `0.3`) and `latest`; log in first with `docker login rg.fr-par.scw.cloud`.
 
+The image is an optional local convenience. CI does not depend on it: a project's `esoul-guidelines check` runs the installer version the project recorded in its `esoul-guidelines.lock` (`esoulGuidelinesCheck` of the [eSoul Jenkins libraries](https://github.com/eSoul-cz/jenkins-libraries) downloads that release's PHAR, verifies its checksum and runs it in the `php` image), so a guidelines release never breaks a project's check, whatever tag this image carries.
+
 ```sh
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/app" -w /app rg.fr-par.scw.cloud/testing-images/esoul-guidelines:0.3 sync
 ```
