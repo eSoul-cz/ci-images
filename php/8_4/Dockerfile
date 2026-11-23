@@ -46,7 +46,7 @@ RUN install-php-extensions \
     pcntl
 
 # eSoul PHP configuration (build context is php/).
-COPY conf.d/10-esoul-security.ini $PHP_INI_DIR/conf.d/
+COPY conf.d/10-esoul-security.ini conf.d/20-esoul-ci.ini $PHP_INI_DIR/conf.d/
 
 # Composer over SSH, for a private package or while GitHub's API fails: the client, GitHub's
 # host keys, and an `ssh` that also starts for the uid Jenkins runs the container as (ssh/ssh).
