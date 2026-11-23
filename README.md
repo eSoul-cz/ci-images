@@ -8,6 +8,7 @@ This repository contains Dockerfiles and related resources for building Docker i
 - **node/**: Node.js images with different versions (24, 26, LTS)
 - **php/**: PHP 8.4/8.5/8.6 CI images, PHP 8.4/8.5 FPM/Laravel images, plus production PHP 8.5 CLI and RoadRunner images. In the PHP 8.6 CI image (`php:8.6`) the extensions whose PECL releases do not compile on 8.6 yet come from [PIE](https://github.com/php/pie): igbinary, redis and imagick at pinned commits of their 8.6-ready branches, imap from `sirlouen/imap`. pcov is replaced by Xdebug (`xdebug.mode=off` unless `XDEBUG_MODE` is set) and protobuf is missing (as of 2026-11-22; see `php/8_6/Dockerfile`)
 - **playwright/**: Microsoft Playwright image with pnpm
+- **esoul-guidelines/**: the [eSoul-cz/guidelines](https://github.com/eSoul-cz/guidelines) installer (PHAR on the PHP CLI Alpine image) for repositories without PHP
 
 ### PHP configuration
 
@@ -50,6 +51,20 @@ It writes `<image>.json` and `<image>.txt` per image to `build/trivy/` (default)
 
 The Jenkins pipeline runs the same script on every published image after the multi-arch manifests are created. It is a soft report: findings or scan errors mark only the `Security scan (Trivy)` stage `UNSTABLE`, the build stays successful, and reports are archived as build artifacts. Untick the `SECURITY_SCAN` build parameter to skip it.
 
+## esoul-guidelines image
+
+`esoul-guidelines/` packages the installer of [eSoul-cz/guidelines](https://github.com/eSoul-cz/guidelines) for repositories and pipelines without PHP (an Astro site, for example). It is the PHP CLI Alpine image (`php:<VERSION>-cli-alpine`, nothing else added) plus the PHAR of one guidelines release as `/usr/local/bin/esoul-guidelines`, which is the entrypoint. The image is published as `rg.fr-par.scw.cloud/testing-images/esoul-guidelines` with the tags `<release>` (`0.3.1`), `<minor>` (`0.3`) and `latest`; log in first with `docker login rg.fr-par.scw.cloud`.
+
+```sh
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/app" -w /app rg.fr-par.scw.cloud/testing-images/esoul-guidelines:0.3.1 sync
+```
+
+Arguments are those of `esoul-guidelines` (`init`, `sync`, `check`, `list`; see the guidelines README). The project is the mounted `/app`, which is also the default working directory.
+
+- `--user "$(id -u):$(id -g)"` makes the generated files belong to the invoking user. Without it the image runs as uid `1000`; Jenkins passes its own uid anyway. The PHAR needs no home directory or other writable path.
+- The guidelines release is the only input: `guidelinesVersion` in the `Jenkinsfile` is passed as the `GUIDELINES_VERSION` build argument, and the Dockerfile downloads that release's `esoul-guidelines.phar` and fails the build unless it matches the release's `esoul-guidelines.phar.sha256`. Build locally with `docker build --build-arg GUIDELINES_VERSION=0.3.1 -t local/esoul-guidelines esoul-guidelines`.
+- The image pins the release, so a project updates the guidelines by moving to a newer image tag and running `sync`.
+
 ## Version updates (Renovate)
 
 Renovate runs self-hosted as the first stage of the nightly Jenkins pipeline (`master` only), in the Docker image pinned by `RENOVATE_IMAGE`. It authenticates as the eSoul GitHub App through the Jenkins GitHub App credential `renovate` (GitHub Branch Source plugin), which mints a short-lived installation token per run. Failures mark only the `Renovate` stage `UNSTABLE`; untick the `RENOVATE` build parameter to skip it.
@@ -59,6 +74,7 @@ Renovate runs self-hosted as the first stage of the nightly Jenkins pipeline (`m
 - PHP patch releases, grouped into one PR across `php/*/Dockerfile` and the `Jenkinsfile` tags/`VERSION` build args. Each directory stays on its PHP minor; new minors (e.g. 8.6) and new Node majors are added by hand.
 - The Playwright base image, created only after approval on the Dependency Dashboard issue, because consumers' `@playwright/test` version must match the image.
 - RoadRunner, the digest-pinned PHP extension installer, the Trivy image in `scripts/trivy-scan.sh`, and Renovate itself.
+- The `eSoul-cz/guidelines` release in the `esoul-guidelines` image (`guidelinesVersion` in the `Jenkinsfile`), as a regular PR to review.
 
 Floating tags (`node:24-alpine`, `node:lts-alpine`, `pnpm@latest`) are not touched; the nightly build refreshes them. Pull-request builds do not build images, so review Renovate PRs before merging.
 
