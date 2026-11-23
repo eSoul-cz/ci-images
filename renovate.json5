@@ -32,6 +32,16 @@
       depNameTemplate: 'renovate/renovate',
       datasourceTemplate: 'docker',
     },
+    {
+      // eSoul-cz/guidelines release whose PHAR the esoul-guidelines image carries (Jenkinsfile `guidelinesVersion`).
+      // The Dockerfile verifies the PHAR against the release's own .sha256, so a bump needs no digest.
+      customType: 'regex',
+      managerFilePatterns: ['/^Jenkinsfile$/'],
+      matchStrings: ["def guidelinesVersion = '(?<currentValue>\\d+\\.\\d+\\.\\d+)'"],
+      depNameTemplate: 'eSoul-cz/guidelines',
+      datasourceTemplate: 'github-releases',
+      extractVersionTemplate: '^v(?<version>.+)$',
+    },
   ],
   packageRules: [
     {
