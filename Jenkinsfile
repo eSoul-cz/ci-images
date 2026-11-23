@@ -141,17 +141,6 @@ pipeline {
 							]
 						],
 						[
-							name: 'esoul-guidelines',
-							versions: [
-								[
-									dir: 'esoul-guidelines',
-									// Tags follow the eSoul-cz/guidelines release the image carries: 0.3.1, 0.3, latest.
-									tags: [guidelinesVersion, guidelinesVersion.substring(0, guidelinesVersion.lastIndexOf('.')), 'latest'],
-									buildArgs: [VERSION: '8.5.12', GUIDELINES_VERSION: guidelinesVersion]
-								]
-							]
-						],
-						[
 							name: 'php',
 							// Shared context so Dockerfiles can COPY php/conf.d.
 							context: 'php',
@@ -248,6 +237,18 @@ pipeline {
 										[target: 'laravel-minimal', imageSuffix: '-laravel-minimal'],
 										[target: 'laravel',         imageSuffix: '-laravel']
 									]
+								]
+							]
+						],
+						[
+							// Last: it downloads from GitHub, so an outage there must not block the images before it.
+							name: 'esoul-guidelines',
+							versions: [
+								[
+									dir: 'esoul-guidelines',
+									// Tags follow the eSoul-cz/guidelines release the image carries: 0.3.1, 0.3, latest.
+									tags: [guidelinesVersion, guidelinesVersion.substring(0, guidelinesVersion.lastIndexOf('.')), 'latest'],
+									buildArgs: [VERSION: '8.5.12', GUIDELINES_VERSION: guidelinesVersion]
 								]
 							]
 						]
