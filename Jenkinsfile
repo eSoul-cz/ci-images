@@ -351,7 +351,9 @@ pipeline {
 		}
 
 		stage('Create multi-arch manifests') {
-			agent any
+			// The node reserved for merging manifests (label docker-manifest), as the shared
+			// dockerBuildMultiArch step uses. `agent any` took whichever general node was free.
+			agent { label 'docker-manifest' }
 			when {
 				beforeAgent true
 				expression {
