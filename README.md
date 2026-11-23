@@ -19,6 +19,7 @@ docker build -f php/base/Dockerfile --target laravel php
 ```
 
 - `10-esoul-security.ini` (every PHP image): disables `session.upload_progress` (CVE-2026-115560 / CVE-2026-109619 mitigation) and `expose_php`.
+- `20-esoul-ci.ini` (CI images `php/8_4`, `php/8_5`, `php/8_6` only): turns on OPcache for the CLI (`opcache.enable_cli=1`). The cache lives only as long as one PHPUnit or PHPStan process, so the gain is small (see the pull request). Timestamp validation stays on and is checked on every file access (`opcache.revalidate_freq=0`), so a PHP file a test writes (a compiled Blade view) is never served stale. JIT stays off (`opcache.jit_buffer_size=0`) and so does the optimizer (`opcache.optimization_level=0`): with pcov the optimizer drops executable lines such as a `break;` from the coverage report. Turn OPcache off for one run with `php -d opcache.enable_cli=0`.
 - `20-esoul-runtime.ini` (FPM and RoadRunner only): production error handling, `zend.assertions=-1`, and OPcache tuning. `PHP_OPCACHE_VALIDATE_TIMESTAMPS`, `PHP_OPCACHE_MEMORY_CONSUMPTION` and `PHP_OPCACHE_ENABLE_CLI` override it at runtime.
 
 ### Composer over SSH
