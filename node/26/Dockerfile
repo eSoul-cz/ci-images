@@ -3,6 +3,9 @@ FROM node:26-alpine
 LABEL authors="Tomáš Vojík"
 LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
 
+# git: test commands that clone or inspect history (`git describe`, `skills add --list`) need it, and Alpine has none.
+RUN apk add --no-cache git
+
 # Install pnpm
 #RUN wget -qO- https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh -
 ENV PNPM_HOME="/pnpm"

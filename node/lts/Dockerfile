@@ -3,6 +3,9 @@ FROM node:lts-alpine
 LABEL authors="Tomáš Vojík"
 LABEL maintainer="Tomáš Vojík <vojik@esoul.cz>"
 
+# git: test commands that clone or inspect history (`git describe`, `skills add --list`) need it, and Alpine has none.
+RUN apk add --no-cache git
+
 # Node 25+ images no longer ship Corepack, so install it from npm.
 # COREPACK_HOME is shared instead of /root/.cache, so pnpm is already present for
 # any UID (CI runs containers as the agent user) and works without network.
