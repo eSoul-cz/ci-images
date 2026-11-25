@@ -36,11 +36,14 @@ COPY ssh/github_known_hosts /etc/ssh/ssh_known_hosts
 # ── Laravel minimal ──────────────────────────────────────────────────────────
 FROM base AS laravel-minimal
 
+# pcntl: a queue worker enforces `--timeout` with an alarm signal; without the extension a job
+# that hangs blocks its worker for good.
 RUN install-php-extensions \
     pdo_sqlite \
     pdo_mysql \
     sqlite3 \
-    redis
+    redis \
+    pcntl
 
 # ── Laravel ──────────────────────────────────────────────────────────────────
 FROM laravel-minimal AS laravel
