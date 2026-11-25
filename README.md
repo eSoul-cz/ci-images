@@ -7,7 +7,7 @@ This repository contains Dockerfiles and related resources for building Docker i
 ### Docker Images
 - **node/**: Node.js images with different versions (24, 26, LTS): Alpine with pnpm and `git`, for test commands that run `git describe`, clone or list a repository (`git` added 2026-11-24; it reaches the registry with the next nightly build)
 - **php/**: PHP 8.4/8.5/8.6 CI images, PHP 8.4/8.5 FPM/Laravel images, plus production PHP 8.5 CLI and RoadRunner images. In the PHP 8.6 CI image (`php:8.6`) the extensions whose PECL releases do not compile on 8.6 yet come from [PIE](https://github.com/php/pie): igbinary, redis and imagick at pinned commits of their 8.6-ready branches, imap from `sirlouen/imap`. pcov is replaced by Xdebug (`xdebug.mode=off` unless `XDEBUG_MODE` is set) and protobuf is missing (as of 2026-11-22; see `php/8_6/Dockerfile`)
-- **playwright/**: Microsoft Playwright image with pnpm
+- **playwright/**: Microsoft Playwright image with pnpm, tag `latest` (Node 24 of the Playwright image) and tag `node26` (the same image with the Node 26 binary from `node:26-bookworm-slim` in `/usr/local/bin`, for applications whose `engines` need Node 26)
 - **esoul-guidelines/**: the [eSoul-cz/guidelines](https://github.com/eSoul-cz/guidelines) installer (PHAR on the PHP CLI Alpine image) for repositories without PHP
 
 ### PHP configuration
