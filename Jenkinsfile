@@ -137,7 +137,9 @@ pipeline {
 						[
 							name: 'playwright',
 							versions: [
-								[dir: 'playwright', tag: 'latest'],
+								[dir: 'playwright', tag: 'latest', target: 'base'],
+								// The same image with Node 26 for applications whose `engines` need it.
+								[dir: 'playwright', tag: 'node26', target: 'node26'],
 							]
 						],
 						[
